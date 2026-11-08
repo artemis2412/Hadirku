@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Activity, Users, CalendarCheck, ClipboardList, Building2, Settings, Bell, ChevronDown, Clock3, CheckCircle2, CircleAlert, Menu, LogOut, Plus, Loader2, ShieldCheck } from 'lucide-react'
+import { Activity, Users, CalendarCheck, ClipboardList, Building2, Settings, Bell, ChevronDown, Clock3, CheckCircle2, CircleAlert, Menu, LogOut, Plus, Loader2, ShieldCheck, Search, Pencil, Trash2, X, Save } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
@@ -57,6 +57,72 @@ function AuthScreen({ onDone }: { onDone: () => void }) {
     </div>
     <div className="auth-security"><ShieldCheck size={15}/> Data organisasi dilindungi dengan akses berbasis peran.</div>
   </section></main>
+}
+
+
+type Person = { id:string; full_name:string; external_code:string|null; person_type:string; email:string|null; phone:string|null; guardian_name:string|null; guardian_phone:string|null; unit_id:string|null; is_active:boolean; notes:string|null }
+type Unit = { id:string; name:string; unit_type:string }
+function MembersPage({organization,userId}:{organization:Organization;userId:string}) {
+  const [people,setPeople]=useState<Person[]>([])
+  const [units,setUnits]=useState<Unit[]>([])
+  const [search,setSearch]=useState('')
+  const [filter,setFilter]=useState('all')
+  const [busy,setBusy]=useState(false)
+  const [saving,setSaving]=useState(false)
+  const [error,setError]=useState('')
+  const [showForm,setShowForm]=useState(false)
+  const [editing,setEditing]=useState<string|null>(null)
+  const blank={full_name:'',external_code:'',person_type:'student',email:'',phone:'',guardian_name:'',guardian_phone:'',unit_id:'',notes:''}
+  const [form,setForm]=useState(blank)
+  const load=useCallback(async()=>{
+    if(!supabase)return
+    setBusy(true);setError('')
+    const [p,u]=await Promise.all([
+      supabase.from('people').select('id,full_name,external_code,person_type,email,phone,guardian_name,guardian_phone,unit_id,is_active,notes').eq('organization_id',organization.id).order('full_name'),
+      supabase.from('organization_units').select('id,name,unit_type').eq('organization_id',organization.id).eq('is_active',true).order('name')
+    ])
+    if(p.error)setError(p.error.message);else setPeople((p.data??[]) as Person[])
+    if(u.error)setError(u.error.message);else setUnits((u.data??[]) as Unit[])
+    setBusy(false)
+  },[organization.id])
+  useEffect(()=>{void load()},[load])
+  function openNew(){setEditing(null);setForm(blank);setShowForm(true);setError('')}
+  function openEdit(p:Person){setEditing(p.id);setForm({full_name:p.full_name,external_code:p.external_code??'',person_type:p.person_type,email:p.email??'',phone:p.phone??'',guardian_name:p.guardian_name??'',guardian_phone:p.guardian_phone??'',unit_id:p.unit_id??'',notes:p.notes??''});setShowForm(true);setError('')}
+  async function save(e:FormEvent){
+    e.preventDefault();if(!supabase)return
+    setSaving(true);setError('')
+    const payload={full_name:form.full_name.trim(),external_code:form.external_code.trim()||null,person_type:form.person_type,email:form.email.trim()||null,phone:form.phone.trim()||null,guardian_name:form.guardian_name.trim()||null,guardian_phone:form.guardian_phone.trim()||null,unit_id:form.unit_id||null,notes:form.notes.trim()||null,is_active:true}
+    const result=editing
+      ? await supabase.from('people').update(payload).eq('id',editing).eq('organization_id',organization.id)
+      : await supabase.from('people').insert({...payload,organization_id:organization.id,created_by:userId})
+    if(result.error){setError(result.error.message);setSaving(false);return}
+    setShowForm(false);setSaving(false);await load()
+  }
+  async function remove(p:Person){
+    if(!supabase||!window.confirm('Hapus data anggota '+p.full_name+'? Data presensi terkait juga dapat terhapus sesuai aturan database.'))return
+    const {error}=await supabase.from('people').delete().eq('id',p.id).eq('organization_id',organization.id)
+    if(error)setError(error.message);else await load()
+  }
+  const filtered=people.filter(p=>(filter==='all'||(filter==='active'?p.is_active:!p.is_active))&&[p.full_name,p.external_code??'',p.phone??'',p.email??''].join(' ').toLowerCase().includes(search.toLowerCase()))
+  const types:[string,string][]=[['student','Siswa'],['employee','Karyawan'],['teacher','Guru'],['member','Anggota'],['volunteer','Relawan'],['other','Lainnya']]
+  return <><section className="welcome-row"><div><p className="eyebrow">DATABASE ORGANISASI</p><h1>Data Anggota</h1><p className="muted">Kelola siswa, karyawan, guru, dan anggota {organization.name}.</p></div><button className="primary-btn" onClick={openNew}><Plus size={17}/> Tambah anggota</button></section>
+    <section className="stats-grid member-stats"><Stat icon={Users} label="Total anggota" value={String(people.length)} note="Seluruh data anggota" color="teal"/><Stat icon={CheckCircle2} label="Aktif" value={String(people.filter(p=>p.is_active).length)} note="Anggota aktif" color="blue"/><Stat icon={CircleAlert} label="Nonaktif" value={String(people.filter(p=>!p.is_active).length)} note="Anggota nonaktif" color="amber"/></section>
+    <section className="panel members-panel"><div className="members-toolbar"><div className="search-box"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari nama, kode, telepon..."/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Semua status</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select></div>
+      {error&&<div className="form-error">{error}</div>}
+      {busy?<div className="empty-state"><Loader2 className="spin" size={18}/> Memuat data anggota...</div>:filtered.length===0?<div className="empty-state"><Users size={25}/><b>{people.length?'Tidak ada anggota yang cocok':'Belum ada data anggota'}</b><span>{people.length?'Ubah kata kunci atau filter pencarian.':'Tambahkan data anggota pertama organisasi Anda.'}</span></div>:
+      <div className="table-wrap"><table className="members-table"><thead><tr><th>Nama anggota</th><th>Kategori</th><th>Unit / Kelas</th><th>Kontak</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{filtered.map(p=><tr key={p.id}><td><b>{p.full_name}</b><small>{p.external_code||'Tanpa kode'}</small></td><td>{types.find(t=>t[0]===p.person_type)?.[1]??'Lainnya'}</td><td>{units.find(u=>u.id===p.unit_id)?.name??'—'}</td><td>{p.phone||p.email||'—'}</td><td><span className={p.is_active?'member-status active':'member-status inactive'}>{p.is_active?'Aktif':'Nonaktif'}</span></td><td><div className="row-actions"><button title="Edit" onClick={()=>openEdit(p)}><Pencil size={15}/></button><button title="Hapus" onClick={()=>void remove(p)}><Trash2 size={15}/></button></div></td></tr>)}</tbody></table></div>}
+      <div className="table-foot">Menampilkan {filtered.length} dari {people.length} anggota</div>
+    </section>
+    {showForm&&<div className="modal-backdrop" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false)}}><section className="member-modal"><div className="modal-heading"><div><p className="eyebrow">{editing?'PERBARUI DATA':'DATA BARU'}</p><h2>{editing?'Edit anggota':'Tambah anggota'}</h2></div><button className="icon-button" onClick={()=>setShowForm(false)}><X size={19}/></button></div><form onSubmit={save} className="member-form">
+      <label>Nama lengkap *<input required value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})} placeholder="Nama lengkap"/></label>
+      <div className="form-two"><label>Kode anggota<input value={form.external_code} onChange={e=>setForm({...form,external_code:e.target.value})} placeholder="NIS / NIP / ID"/></label><label>Kategori<select value={form.person_type} onChange={e=>setForm({...form,person_type:e.target.value})}>{types.map(t=><option value={t[0]} key={t[0]}>{t[1]}</option>)}</select></label></div>
+      <label>Unit / kelas / divisi<select value={form.unit_id} onChange={e=>setForm({...form,unit_id:e.target.value})}><option value="">Belum ditentukan</option>{units.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+      <div className="form-two"><label>Email<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="email@contoh.com"/></label><label>Nomor telepon<input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="08xxxxxxxxxx"/></label></div>
+      <div className="form-two"><label>Nama orang tua / wali<input value={form.guardian_name} onChange={e=>setForm({...form,guardian_name:e.target.value})} placeholder="Opsional"/></label><label>Telepon wali<input value={form.guardian_phone} onChange={e=>setForm({...form,guardian_phone:e.target.value})} placeholder="Opsional"/></label></div>
+      <label>Catatan<textarea rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Catatan tambahan (opsional)"/></label>
+      {error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setShowForm(false)}>Batal</button><button className="primary-btn" disabled={saving}>{saving?<Loader2 className="spin" size={16}/>:<Save size={16}/>} Simpan anggota</button></div>
+    </form></section></div>}
+  </>
 }
 
 function App() {
@@ -138,7 +204,7 @@ function App() {
       <header className="topbar"><button className="mobile-menu" onClick={()=>setMenuOpen(!menuOpen)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span> <b>{page}</b></div><div className="top-actions"><button className="icon-button" title="Notifikasi"><Bell size={18}/></button><div className="profile"><div className="profile-avatar">{displayName.slice(0,1).toUpperCase()}</div><div><b>{displayName}</b><small>{user.email}</small></div><button className="icon-button" onClick={logout} title="Keluar"><LogOut size={17}/></button></div></div></header>
       <div className="content">
         {error&&<div className="form-error page-error">{error}</div>}
-        {page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
+        {page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
           <section className="panel org-panel"><div className="panel-heading"><div><h2>Buat organisasi baru</h2><p>Setiap organisasi memiliki data dan akses yang terpisah.</p></div><Building2 size={22}/></div><form className="org-form" onSubmit={createOrganization}><label>Nama organisasi<input required value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="Contoh: SMP Harapan Bangsa"/></label><label>Jenis organisasi<select value={orgType} onChange={e=>setOrgType(e.target.value)}>{orgTypes.map(t=><option key={t}>{t}</option>)}</select></label><button className="primary-btn" disabled={creating||!orgName.trim()}>{creating?<Loader2 className="spin" size={17}/>:<Plus size={17}/>} Buat organisasi</button></form></section>
           <section className="panel org-list"><div className="panel-heading"><div><h2>Daftar organisasi</h2><p>{organizations.length} organisasi terhubung</p></div></div>{organizations.length?organizations.map(o=><button className={'org-list-item '+(organization?.id===o.id?'current':'')} key={o.id} onClick={()=>{setOrganization(o);setPage('Ringkasan')}}><div className="org-avatar">{o.name.slice(0,1).toUpperCase()}</div><div><b>{o.name}</b><small>{o.organization_type} · {o.timezone}</small></div><span>{organization?.id===o.id?'Sedang aktif':'Buka workspace →'}</span></button>):<p className="empty-state">Belum ada organisasi. Buat organisasi pertama untuk memulai.</p>}</section>
         </>:!organization?<section className="empty-org"><div className="empty-icon"><Building2 size={28}/></div><p className="eyebrow">MULAI DARI SINI</p><h1>Buat workspace organisasi</h1><p>Tambahkan organisasi pertama agar Anda dapat mengelola anggota dan presensi.</p><button className="primary-btn" onClick={()=>setPage('Organisasi')}><Plus size={17}/> Buat organisasi</button></section>
