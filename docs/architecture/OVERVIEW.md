@@ -21,3 +21,7 @@ The Android app will use Room for local data and an outbox-based synchronization
 
 ## Initial modules
 Organizations, memberships and roles, organizational units, people, attendance sessions and records, reports, and notification delivery.
+
+
+## Current database foundation
+The first schema is deployed with organizations, memberships, organizational units, people, attendance statuses, sessions, and attendance records. All tenant-owned records are scoped by organization ID and protected by RLS. Organization onboarding creates the tenant and its first owner membership atomically through a SECURITY INVOKER RPC.
