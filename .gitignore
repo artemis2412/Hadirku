@@ -10,3 +10,6 @@ dist/
 build/
 local.properties
 *.iml
+
+# Keep example environment files tracked
+!**/.env.example
