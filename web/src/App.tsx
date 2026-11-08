@@ -23,7 +23,7 @@ function AuthScreen({ onDone }: { onDone: () => void }) {
     setBusy(true); setError(''); setMessage('')
     try {
       if (mode === 'register') {
-        const {data,error} = await supabase.auth.signUp({email,password,options:{data:{display_name:name}}})
+        const {data,error} = await supabase.auth.signUp({email,password,options:{data:{full_name:name,display_name:name}}})
         if(error) throw error
         if(data.session) onDone()
         else setMessage('Pendaftaran berhasil. Silakan periksa email untuk verifikasi sebelum masuk.')
