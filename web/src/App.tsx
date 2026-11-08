@@ -8,7 +8,7 @@ type Organization = { id: string; name: string; organization_type: string; timez
 type Page = 'Ringkasan' | 'Organisasi' | 'Data Anggota' | 'Presensi' | 'Laporan' | 'Pengaturan'
 
 const nav = [{label:'Ringkasan' as Page,icon:Activity},{label:'Organisasi' as Page,icon:Building2},{label:'Data Anggota' as Page,icon:Users},{label:'Presensi' as Page,icon:CalendarCheck},{label:'Laporan' as Page,icon:ClipboardList}]
-const orgTypes = ['Sekolah','Yayasan','Pesantren','Perusahaan','Kursus','Komunitas','Organisasi Lainnya']
+const orgTypes = [{value:'school',label:'Sekolah'},{value:'foundation',label:'Yayasan'},{value:'pesantren',label:'Pesantren'},{value:'company',label:'Perusahaan'},{value:'course',label:'Kursus'},{value:'community',label:'Komunitas'},{value:'other',label:'Organisasi Lainnya'}]
 
 function AuthScreen({ onDone }: { onDone: () => void }) {
   const [mode,setMode] = useState<'login'|'register'|'reset'>('login')
@@ -137,7 +137,7 @@ function App() {
   const [peopleCount,setPeopleCount] = useState(0)
   const [sessionCount,setSessionCount] = useState(0)
   const [orgName,setOrgName] = useState('')
-  const [orgType,setOrgType] = useState('Sekolah')
+  const [orgType,setOrgType] = useState('school')
   const [creating,setCreating] = useState(false)
 
   useEffect(()=>{
@@ -205,7 +205,7 @@ function App() {
       <div className="content">
         {error&&<div className="form-error page-error">{error}</div>}
         {page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
-          <section className="panel org-panel"><div className="panel-heading"><div><h2>Buat organisasi baru</h2><p>Setiap organisasi memiliki data dan akses yang terpisah.</p></div><Building2 size={22}/></div><form className="org-form" onSubmit={createOrganization}><label>Nama organisasi<input required value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="Contoh: SMP Harapan Bangsa"/></label><label>Jenis organisasi<select value={orgType} onChange={e=>setOrgType(e.target.value)}>{orgTypes.map(t=><option key={t}>{t}</option>)}</select></label><button className="primary-btn" disabled={creating||!orgName.trim()}>{creating?<Loader2 className="spin" size={17}/>:<Plus size={17}/>} Buat organisasi</button></form></section>
+          <section className="panel org-panel"><div className="panel-heading"><div><h2>Buat organisasi baru</h2><p>Setiap organisasi memiliki data dan akses yang terpisah.</p></div><Building2 size={22}/></div><form className="org-form" onSubmit={createOrganization}><label>Nama organisasi<input required value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="Contoh: SMP Harapan Bangsa"/></label><label>Jenis organisasi<select value={orgType} onChange={e=>setOrgType(e.target.value)}>{orgTypes.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label><button className="primary-btn" disabled={creating||!orgName.trim()}>{creating?<Loader2 className="spin" size={17}/>:<Plus size={17}/>} Buat organisasi</button></form></section>
           <section className="panel org-list"><div className="panel-heading"><div><h2>Daftar organisasi</h2><p>{organizations.length} organisasi terhubung</p></div></div>{organizations.length?organizations.map(o=><button className={'org-list-item '+(organization?.id===o.id?'current':'')} key={o.id} onClick={()=>{setOrganization(o);setPage('Ringkasan')}}><div className="org-avatar">{o.name.slice(0,1).toUpperCase()}</div><div><b>{o.name}</b><small>{o.organization_type} · {o.timezone}</small></div><span>{organization?.id===o.id?'Sedang aktif':'Buka workspace →'}</span></button>):<p className="empty-state">Belum ada organisasi. Buat organisasi pertama untuk memulai.</p>}</section>
         </>:!organization?<section className="empty-org"><div className="empty-icon"><Building2 size={28}/></div><p className="eyebrow">MULAI DARI SINI</p><h1>Buat workspace organisasi</h1><p>Tambahkan organisasi pertama agar Anda dapat mengelola anggota dan presensi.</p><button className="primary-btn" onClick={()=>setPage('Organisasi')}><Plus size={17}/> Buat organisasi</button></section>
         :page==='Ringkasan'?<><section className="welcome-row"><div><p className="eyebrow">DASHBOARD ORGANISASI</p><h1>Selamat datang, {displayName}</h1><p className="muted">Ringkasan aktivitas <b>{organization.name}</b>.</p></div><div className="date-chip"><Clock3 size={16}/> {organization.timezone}</div></section>
