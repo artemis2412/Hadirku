@@ -6,6 +6,7 @@ alter table public.people drop constraint people_unit_id_organization_id_fkey,
 alter table public.attendance_sessions drop constraint attendance_sessions_unit_id_organization_id_fkey,
  add constraint attendance_sessions_unit_id_organization_id_fkey foreign key(unit_id,organization_id) references public.organization_units(id,organization_id) on delete restrict;
 
+create index memberships_user_status_idx2 on public.organization_memberships(user_id);
 create index organizations_created_by_idx on public.organizations(created_by);
 create index units_parent_org_fk_idx on public.organization_units(parent_unit_id,organization_id);
 create index units_created_by_idx on public.organization_units(created_by);
