@@ -167,6 +167,97 @@ function UnitsPage({organization,userId}:{organization:Organization;userId:strin
   </>
 }
 
+
+type SessionRow={id:string;title:string;attendance_date:string;unit_id:string|null;session_status:string}
+type StatusRow={id:string;code:string;label:string;is_present:boolean;is_excused:boolean;sort_order:number}
+function AttendancePage({organization,userId}:{organization:Organization;userId:string}) {
+  const [sessions,setSessions]=useState<SessionRow[]>([])
+  const [units,setUnits]=useState<Unit[]>([])
+  const [people,setPeople]=useState<Person[]>([])
+  const [statuses,setStatuses]=useState<StatusRow[]>([])
+  const [marks,setMarks]=useState<Record<string,string>>({})
+  const [existing,setExisting]=useState<Record<string,string>>({})
+  const [active,setActive]=useState<SessionRow|null>(null)
+  const [busy,setBusy]=useState(false)
+  const [saving,setSaving]=useState(false)
+  const [error,setError]=useState('')
+  const [showCreate,setShowCreate]=useState(false)
+  const [title,setTitle]=useState('Presensi Harian')
+  const [date,setDate]=useState(new Intl.DateTimeFormat('en-CA',{timeZone:organization.timezone}).format(new Date()))
+  const [unitId,setUnitId]=useState('')
+  const loadSessions=useCallback(async()=>{
+    if(!supabase)return
+    setBusy(true);setError('')
+    const [s,u,st]=await Promise.all([
+      supabase.from('attendance_sessions').select('id,title,attendance_date,unit_id,session_status').eq('organization_id',organization.id).order('attendance_date',{ascending:false}).order('created_at',{ascending:false}),
+      supabase.from('organization_units').select('id,name,unit_type').eq('organization_id',organization.id).eq('is_active',true).order('name'),
+      supabase.from('attendance_statuses').select('id,code,label,is_present,is_excused,sort_order').eq('organization_id',organization.id).eq('is_active',true).order('sort_order')
+    ])
+    if(s.error)setError(s.error.message);else setSessions((s.data??[]) as SessionRow[])
+    if(u.error)setError(u.error.message);else setUnits((u.data??[]) as Unit[])
+    if(st.error)setError(st.error.message);else setStatuses((st.data??[]) as StatusRow[])
+    setBusy(false)
+  },[organization.id])
+  useEffect(()=>{void loadSessions()},[loadSessions])
+  async function createSession(e:FormEvent){
+    e.preventDefault();if(!supabase)return
+    setSaving(true);setError('')
+    const {data,error}=await supabase.from('attendance_sessions').insert({organization_id:organization.id,title:title.trim(),attendance_date:date,unit_id:unitId||null,created_by:userId}).select('id,title,attendance_date,unit_id,session_status').single()
+    if(error){setError(error.message);setSaving(false);return}
+    setShowCreate(false);setSaving(false);setTitle('Presensi Harian');await loadSessions();if(data)void openSession(data as SessionRow)
+  }
+  async function openSession(session:SessionRow){
+    if(!supabase)return
+    setActive(session);setBusy(true);setError('')
+    let peopleQuery=supabase.from('people').select('id,full_name,external_code,person_type,email,phone,guardian_name,guardian_phone,unit_id,is_active,notes').eq('organization_id',organization.id).eq('is_active',true).order('full_name')
+    if(session.unit_id)peopleQuery=peopleQuery.eq('unit_id',session.unit_id)
+    const [p,r]=await Promise.all([
+      peopleQuery,
+      supabase.from('attendance_records').select('person_id,status_id').eq('organization_id',organization.id).eq('session_id',session.id)
+    ])
+    if(p.error)setError(p.error.message);else setPeople((p.data??[]) as Person[])
+    if(r.error)setError(r.error.message);else{
+      const ex:Record<string,string>={},mk:Record<string,string>={}
+      ;(r.data??[]).forEach(row=>{ex[row.person_id]=row.status_id;mk[row.person_id]=row.status_id})
+      setExisting(ex);setMarks(mk)
+    }
+    setBusy(false)
+  }
+  async function saveMarks(){
+    if(!supabase||!active)return
+    setSaving(true);setError('')
+    for(const person of people){
+      const statusId=marks[person.id]
+      if(!statusId)continue
+      const payload={status_id:statusId,marked_by:userId,marked_at:new Date().toISOString()}
+      const result=existing[person.id]
+        ?await supabase.from('attendance_records').update(payload).eq('organization_id',organization.id).eq('session_id',active.id).eq('person_id',person.id)
+        :await supabase.from('attendance_records').insert({...payload,organization_id:organization.id,session_id:active.id,person_id:person.id})
+      if(result.error){setError('Gagal menyimpan '+person.full_name+': '+result.error.message);setSaving(false);return}
+    }
+    setSaving(false);await openSession(active)
+  }
+  async function closeSession(){
+    if(!supabase||!active)return
+    const {error}=await supabase.from('attendance_sessions').update({session_status:'closed'}).eq('id',active.id).eq('organization_id',organization.id)
+    if(error){setError(error.message);return}
+    setActive(null);await loadSessions()
+  }
+  const countMarked=people.filter(p=>!!marks[p.id]).length
+  const countPresent=people.filter(p=>statuses.find(s=>s.id===marks[p.id])?.is_present).length
+  return <><section className="welcome-row"><div><p className="eyebrow">PENCATATAN KEHADIRAN</p><h1>Presensi</h1><p className="muted">Buat sesi dan catat status kehadiran anggota.</p></div><button className="primary-btn" onClick={()=>{setShowCreate(true);setError('')}}><Plus size={17}/> Buat sesi</button></section>
+    {error&&<div className="form-error page-error">{error}</div>}
+    {active?<section className="panel attendance-panel"><div className="attendance-head"><div><button className="back-link" onClick={()=>setActive(null)}>← Semua sesi</button><h2>{active.title}</h2><p>{active.attendance_date} · {active.unit_id?units.find(u=>u.id===active.unit_id)?.name??'Unit':'Seluruh anggota'}</p></div><div className="attendance-actions"><span className="member-status active">{countMarked}/{people.length} tercatat</span><button className="secondary-btn" onClick={()=>void closeSession()} disabled={active.session_status==='closed'}>Tutup sesi</button></div></div>
+      <div className="attendance-summary"><div><b>{people.length}</b><small>Anggota</small></div><div><b>{countPresent}</b><small>Hadir</small></div><div><b>{countMarked-countPresent}</b><small>Belum hadir / lainnya</small></div></div>
+      {busy?<div className="empty-state"><Loader2 className="spin"/> Memuat daftar anggota...</div>:people.length===0?<div className="empty-state"><Users size={25}/><b>Belum ada anggota di sesi ini</b><span>Tambahkan anggota aktif atau pilih unit yang sesuai.</span></div>:<div className="table-wrap"><table className="members-table attendance-table"><thead><tr><th>Nama anggota</th><th>Status kehadiran</th></tr></thead><tbody>{people.map(p=><tr key={p.id}><td><b>{p.full_name}</b><small>{p.external_code||'Tanpa kode'}</small></td><td><select className="attendance-select" value={marks[p.id]??''} disabled={active.session_status==='closed'} onChange={e=>setMarks({...marks,[p.id]:e.target.value})}><option value="">Pilih status</option>{statuses.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></td></tr>)}</tbody></table></div>}
+      <div className="attendance-footer"><span>{active.session_status==='closed'?'Sesi sudah ditutup':'Perubahan belum tersimpan sampai tombol simpan ditekan.'}</span><button className="primary-btn" disabled={saving||active.session_status==='closed'||people.length===0} onClick={()=>void saveMarks()}>{saving?<Loader2 className="spin"/>:<Save size={16}/>} Simpan presensi</button></div>
+    </section>:<section className="panel org-list"><div className="panel-heading"><div><h2>Riwayat sesi presensi</h2><p>{sessions.length} sesi tercatat</p></div></div>
+      {busy?<div className="empty-state"><Loader2 className="spin"/> Memuat sesi...</div>:sessions.length===0?<div className="empty-state"><CalendarCheck size={25}/><b>Belum ada sesi presensi</b><span>Buat sesi pertama untuk mulai mencatat kehadiran.</span></div>:sessions.map(s=><button className="session-row" key={s.id} onClick={()=>void openSession(s)}><div className="unit-icon"><CalendarCheck size={18}/></div><div className="unit-details"><b>{s.title}</b><small>{s.attendance_date} · {s.unit_id?units.find(u=>u.id===s.unit_id)?.name??'Unit':'Seluruh anggota'}</small></div><span className={s.session_status==='open'?'member-status active':'member-status inactive'}>{s.session_status==='open'?'Terbuka':s.session_status==='closed'?'Ditutup':s.session_status}</span><span className="session-arrow">→</span></button>)}
+    </section>}
+    {showCreate&&<div className="modal-backdrop" onClick={e=>{if(e.target===e.currentTarget)setShowCreate(false)}}><section className="member-modal"><div className="modal-heading"><div><p className="eyebrow">SESI BARU</p><h2>Buat sesi presensi</h2></div><button className="icon-button" onClick={()=>setShowCreate(false)}><X size={19}/></button></div><form className="member-form" onSubmit={createSession}><label>Nama sesi *<input required value={title} onChange={e=>setTitle(e.target.value)} placeholder="Contoh: Presensi Pagi"/></label><label>Tanggal presensi *<input required type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Unit / kelas<select value={unitId} onChange={e=>setUnitId(e.target.value)}><option value="">Seluruh anggota</option>{units.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setShowCreate(false)}>Batal</button><button className="primary-btn" disabled={saving||!title.trim()}>{saving?<Loader2 className="spin"/>:<Plus size={16}/>} Buat sesi</button></div></form></section></div>}
+  </>
+}
+
 function App() {
   const [user,setUser] = useState<User|null>(null)
   const [authLoading,setAuthLoading] = useState(true)
@@ -246,7 +337,7 @@ function App() {
       <header className="topbar"><button className="mobile-menu" onClick={()=>setMenuOpen(!menuOpen)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span> <b>{page}</b></div><div className="top-actions"><button className="icon-button" title="Notifikasi"><Bell size={18}/></button><div className="profile"><div className="profile-avatar">{displayName.slice(0,1).toUpperCase()}</div><div><b>{displayName}</b><small>{user.email}</small></div><button className="icon-button" onClick={logout} title="Keluar"><LogOut size={17}/></button></div></div></header>
       <div className="content">
         {error&&<div className="form-error page-error">{error}</div>}
-        {page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Unit / Kelas'&&organization?<UnitsPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
+        {page==='Presensi'&&organization?<AttendancePage organization={organization} userId={user.id}/>:page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Unit / Kelas'&&organization?<UnitsPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
           <section className="panel org-panel"><div className="panel-heading"><div><h2>Buat organisasi baru</h2><p>Setiap organisasi memiliki data dan akses yang terpisah.</p></div><Building2 size={22}/></div><form className="org-form" onSubmit={createOrganization}><label>Nama organisasi<input required value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="Contoh: SMP Harapan Bangsa"/></label><label>Jenis organisasi<select value={orgType} onChange={e=>setOrgType(e.target.value)}>{orgTypes.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label><button className="primary-btn" disabled={creating||!orgName.trim()}>{creating?<Loader2 className="spin" size={17}/>:<Plus size={17}/>} Buat organisasi</button></form></section>
           <section className="panel org-list"><div className="panel-heading"><div><h2>Daftar organisasi</h2><p>{organizations.length} organisasi terhubung</p></div></div>{organizations.length?organizations.map(o=><button className={'org-list-item '+(organization?.id===o.id?'current':'')} key={o.id} onClick={()=>{setOrganization(o);setPage('Ringkasan')}}><div className="org-avatar">{o.name.slice(0,1).toUpperCase()}</div><div><b>{o.name}</b><small>{o.organization_type} · {o.timezone}</small></div><span>{organization?.id===o.id?'Sedang aktif':'Buka workspace →'}</span></button>):<p className="empty-state">Belum ada organisasi. Buat organisasi pertama untuk memulai.</p>}</section>
         </>:!organization?<section className="empty-org"><div className="empty-icon"><Building2 size={28}/></div><p className="eyebrow">MULAI DARI SINI</p><h1>Buat workspace organisasi</h1><p>Tambahkan organisasi pertama agar Anda dapat mengelola anggota dan presensi.</p><button className="primary-btn" onClick={()=>setPage('Organisasi')}><Plus size={17}/> Buat organisasi</button></section>
