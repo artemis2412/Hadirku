@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Activity, Users, CalendarCheck, ClipboardList, Building2, Settings, Bell, ChevronDown, Clock3, CheckCircle2, CircleAlert, Menu, LogOut, Plus, Loader2, ShieldCheck, Search, Pencil, Trash2, X, Save } from 'lucide-react'
+import { Activity, Users, CalendarCheck, ClipboardList, Building2, Settings, Bell, ChevronDown, Clock3, CheckCircle2, CircleAlert, Menu, LogOut, Plus, Loader2, ShieldCheck, Search, Pencil, Trash2, X, Save, Layers } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 type Organization = { id: string; name: string; organization_type: string; timezone: string }
-type Page = 'Ringkasan' | 'Organisasi' | 'Data Anggota' | 'Presensi' | 'Laporan' | 'Pengaturan'
+type Page = 'Ringkasan' | 'Organisasi' | 'Unit / Kelas' | 'Data Anggota' | 'Presensi' | 'Laporan' | 'Pengaturan'
 
-const nav = [{label:'Ringkasan' as Page,icon:Activity},{label:'Organisasi' as Page,icon:Building2},{label:'Data Anggota' as Page,icon:Users},{label:'Presensi' as Page,icon:CalendarCheck},{label:'Laporan' as Page,icon:ClipboardList}]
+const nav = [{label:'Ringkasan' as Page,icon:Activity},{label:'Organisasi' as Page,icon:Building2},{label:'Unit / Kelas' as Page,icon:Layers},{label:'Data Anggota' as Page,icon:Users},{label:'Presensi' as Page,icon:CalendarCheck},{label:'Laporan' as Page,icon:ClipboardList}]
 const orgTypes = [{value:'school',label:'Sekolah'},{value:'foundation',label:'Yayasan'},{value:'pesantren',label:'Pesantren'},{value:'company',label:'Perusahaan'},{value:'course',label:'Kursus'},{value:'community',label:'Komunitas'},{value:'other',label:'Organisasi Lainnya'}]
 
 function AuthScreen({ onDone }: { onDone: () => void }) {
@@ -125,6 +125,48 @@ function MembersPage({organization,userId}:{organization:Organization;userId:str
   </>
 }
 
+
+function UnitsPage({organization,userId}:{organization:Organization;userId:string}) {
+  const [units,setUnits]=useState<Unit[]>([])
+  const [busy,setBusy]=useState(false)
+  const [saving,setSaving]=useState(false)
+  const [error,setError]=useState('')
+  const [showForm,setShowForm]=useState(false)
+  const [editing,setEditing]=useState<string|null>(null)
+  const [name,setName]=useState('')
+  const [unitType,setUnitType]=useState('class')
+  const [description,setDescription]=useState('')
+  const labels:Record<string,string>={class:'Kelas',department:'Departemen',division:'Divisi',team:'Tim',group:'Kelompok',branch:'Cabang',general:'Umum'}
+  const load=useCallback(async()=>{
+    if(!supabase)return
+    setBusy(true);setError('')
+    const {data,error}=await supabase.from('organization_units').select('id,name,unit_type,is_active,description').eq('organization_id',organization.id).order('name')
+    if(error)setError(error.message);else setUnits((data??[]) as Unit[])
+    setBusy(false)
+  },[organization.id])
+  useEffect(()=>{void load()},[load])
+  function start(unit?:Unit){setEditing(unit?.id??null);setName(unit?.name??'');setUnitType(unit?.unit_type??'class');setDescription((unit as any)?.description??'');setShowForm(true);setError('')}
+  async function save(e:FormEvent){
+    e.preventDefault();if(!supabase)return
+    setSaving(true);setError('')
+    const payload={name:name.trim(),unit_type:unitType,description:description.trim()||null,is_active:true}
+    const result=editing?await supabase.from('organization_units').update(payload).eq('id',editing).eq('organization_id',organization.id):await supabase.from('organization_units').insert({...payload,organization_id:organization.id,created_by:userId})
+    if(result.error){setError(result.error.message);setSaving(false);return}
+    setShowForm(false);setSaving(false);await load()
+  }
+  async function toggle(unit:Unit & {is_active?:boolean}){
+    if(!supabase)return
+    const {error}=await supabase.from('organization_units').update({is_active:!unit.is_active}).eq('id',unit.id).eq('organization_id',organization.id)
+    if(error)setError(error.message);else await load()
+  }
+  return <><section className="welcome-row"><div><p className="eyebrow">STRUKTUR ORGANISASI</p><h1>Unit / Kelas</h1><p className="muted">Kelompokkan anggota berdasarkan kelas, divisi, tim, atau cabang.</p></div><button className="primary-btn" onClick={()=>start()}><Plus size={17}/> Tambah unit</button></section>
+    <section className="panel org-list"><div className="panel-heading"><div><h2>Daftar unit organisasi</h2><p>{units.length} unit terdaftar · {units.filter(u=>(u as any).is_active).length} aktif</p></div></div>{error&&<div className="form-error">{error}</div>}
+      {busy?<div className="empty-state"><Loader2 className="spin"/> Memuat unit...</div>:units.length===0?<div className="empty-state"><Layers size={25}/><b>Belum ada unit atau kelas</b><span>Buat unit pertama untuk mengelompokkan anggota.</span></div>:units.map(unit=><div className="unit-row" key={unit.id}><div className="unit-icon"><Layers size={18}/></div><div className="unit-details"><b>{unit.name}</b><small>{labels[unit.unit_type]??'Umum'}{(unit as any).description?' · '+(unit as any).description:''}</small></div><span className={(unit as any).is_active?'member-status active':'member-status inactive'}>{(unit as any).is_active?'Aktif':'Nonaktif'}</span><div className="row-actions"><button title="Edit" onClick={()=>start(unit)}><Pencil size={15}/></button><button title={(unit as any).is_active?'Nonaktifkan':'Aktifkan'} onClick={()=>void toggle(unit as any)}>{(unit as any).is_active?<X size={15}/>:<CheckCircle2 size={15}/>}</button></div></div>)}
+    </section>
+    {showForm&&<div className="modal-backdrop" onClick={e=>{if(e.target===e.currentTarget)setShowForm(false)}}><section className="member-modal"><div className="modal-heading"><div><p className="eyebrow">STRUKTUR ORGANISASI</p><h2>{editing?'Edit unit':'Tambah unit baru'}</h2></div><button className="icon-button" onClick={()=>setShowForm(false)}><X size={19}/></button></div><form className="member-form" onSubmit={save}><label>Nama unit / kelas *<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Contoh: Kelas 7A / Divisi Keuangan"/></label><label>Jenis unit<select value={unitType} onChange={e=>setUnitType(e.target.value)}>{Object.entries(labels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label>Deskripsi<textarea rows={2} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Keterangan tambahan (opsional)"/></label>{error&&<div className="form-error">{error}</div>}<div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setShowForm(false)}>Batal</button><button className="primary-btn" disabled={saving}>{saving?<Loader2 className="spin"/>:<Save size={16}/>} Simpan unit</button></div></form></section></div>}
+  </>
+}
+
 function App() {
   const [user,setUser] = useState<User|null>(null)
   const [authLoading,setAuthLoading] = useState(true)
@@ -204,7 +246,7 @@ function App() {
       <header className="topbar"><button className="mobile-menu" onClick={()=>setMenuOpen(!menuOpen)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span> <b>{page}</b></div><div className="top-actions"><button className="icon-button" title="Notifikasi"><Bell size={18}/></button><div className="profile"><div className="profile-avatar">{displayName.slice(0,1).toUpperCase()}</div><div><b>{displayName}</b><small>{user.email}</small></div><button className="icon-button" onClick={logout} title="Keluar"><LogOut size={17}/></button></div></div></header>
       <div className="content">
         {error&&<div className="form-error page-error">{error}</div>}
-        {page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
+        {page==='Data Anggota'&&organization?<MembersPage organization={organization} userId={user.id}/>:page==='Unit / Kelas'&&organization?<UnitsPage organization={organization} userId={user.id}/>:page==='Organisasi'?<><section className="welcome-row"><div><p className="eyebrow">WORKSPACE ORGANISASI</p><h1>Organisasi Anda</h1><p className="muted">Kelola ruang kerja yang terhubung dengan akun ini.</p></div></section>
           <section className="panel org-panel"><div className="panel-heading"><div><h2>Buat organisasi baru</h2><p>Setiap organisasi memiliki data dan akses yang terpisah.</p></div><Building2 size={22}/></div><form className="org-form" onSubmit={createOrganization}><label>Nama organisasi<input required value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="Contoh: SMP Harapan Bangsa"/></label><label>Jenis organisasi<select value={orgType} onChange={e=>setOrgType(e.target.value)}>{orgTypes.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label><button className="primary-btn" disabled={creating||!orgName.trim()}>{creating?<Loader2 className="spin" size={17}/>:<Plus size={17}/>} Buat organisasi</button></form></section>
           <section className="panel org-list"><div className="panel-heading"><div><h2>Daftar organisasi</h2><p>{organizations.length} organisasi terhubung</p></div></div>{organizations.length?organizations.map(o=><button className={'org-list-item '+(organization?.id===o.id?'current':'')} key={o.id} onClick={()=>{setOrganization(o);setPage('Ringkasan')}}><div className="org-avatar">{o.name.slice(0,1).toUpperCase()}</div><div><b>{o.name}</b><small>{o.organization_type} · {o.timezone}</small></div><span>{organization?.id===o.id?'Sedang aktif':'Buka workspace →'}</span></button>):<p className="empty-state">Belum ada organisasi. Buat organisasi pertama untuk memulai.</p>}</section>
         </>:!organization?<section className="empty-org"><div className="empty-icon"><Building2 size={28}/></div><p className="eyebrow">MULAI DARI SINI</p><h1>Buat workspace organisasi</h1><p>Tambahkan organisasi pertama agar Anda dapat mengelola anggota dan presensi.</p><button className="primary-btn" onClick={()=>setPage('Organisasi')}><Plus size={17}/> Buat organisasi</button></section>
