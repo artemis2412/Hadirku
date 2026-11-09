@@ -88,8 +88,14 @@ class AttendanceSyncWorker(
                 }
 
                 if (response.status.value in 200..299) {
-                    dao.markRecordSynced(recordId)
-                    dao.removeSyncedOperation(operation.id)
+                    // Only remove the exact payload that was sent. If the user edited this
+                    // attendance while the request was in flight, keep the newer outbox row.
+                    val removed = dao.removeSyncedOperation(operation.id, operation.payloadJson)
+                    if (removed > 0) {
+                        dao.markRecordSynced(recordId, operation.id)
+                    } else {
+                        return@withContext Result.retry()
+                    }
                 } else {
                     val detail = response.bodyAsText().take(500)
                     dao.recordSyncFailure(operation.id, "HTTP ${response.status.value}: $detail")
