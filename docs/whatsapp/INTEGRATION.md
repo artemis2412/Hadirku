@@ -14,13 +14,13 @@ RLS scopes every row by organization membership and role. A database trigger rej
 
 ## Provider credentials
 
-Set secrets only in Supabase Edge Function Secrets (never in web `.env`, browser storage, Git, or public database rows):
+For a single-business development connection, provider credentials may be stored as Supabase Edge Function Secrets:
 
 - `WHATSAPP_ACCESS_TOKEN`
 - `WHATSAPP_VERIFY_TOKEN`
 - `WHATSAPP_APP_SECRET`
 
-The organization settings table stores only the non-secret Meta `phone_number_id`, `business_account_id`, and display phone number.
+**Multi-tenant production requirement:** each organization may connect a different WABA and phone number. Do not use one global access token for all tenants. Implement per-organization credential storage encrypted with Supabase Vault or an external KMS, and keep the encryption/decryption path server-side only. The organization settings table stores only non-secret Meta identifiers (`phone_number_id`, `business_account_id`, display phone number).
 
 ## Activation checklist
 
