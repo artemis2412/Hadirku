@@ -40,9 +40,10 @@ The worker uses `META_GRAPH_API_VERSION` (for example, a currently supported `vN
 - Use approved templates outside the customer-service window.
 - Keep provider access tokens server-side only.
 - Use idempotency keys, bounded retries, delivery status history, and webhook signature verification.
+- Keep template approval status provider-managed; an organization admin cannot mark a draft as approved. Approved template content must not be edited in place.
 - Log provider message IDs and sanitized error codes; do not log access tokens or message secrets.
 - Do not enable automatic bulk marketing; marketing requires separate lawful basis, consent and provider policy review.
 
 ## Current state
 
-The database foundation, per-organization Vault credential storage, authenticated credential endpoint, queue worker, and signed webhook handler are deployed. Sending remains disabled by default (`sending_enabled = false`) until Meta app secrets, a verified business phone, approved templates, consent records, and production tests are complete.
+The database foundation, per-organization Vault credential storage, authenticated credential endpoint, queue worker, and signed webhook handler are deployed. The worker records failed attempts in the event timeline and rechecks recipient consent immediately before sending. Sending remains disabled by default (`sending_enabled = false`) until Meta app secrets, a verified business phone, approved templates, consent records, and production tests are complete.
