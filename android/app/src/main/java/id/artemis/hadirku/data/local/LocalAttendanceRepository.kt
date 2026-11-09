@@ -1,5 +1,7 @@
 package id.artemis.hadirku.data.local
 
+import android.content.Context
+import id.artemis.hadirku.data.sync.AttendanceSyncScheduler
 import org.json.JSONObject
 import java.time.Instant
 import java.util.UUID
@@ -11,6 +13,7 @@ import java.util.UUID
  */
 class LocalAttendanceRepository(
     private val dao: LocalAttendanceDao,
+    private val context: Context,
 ) {
     suspend fun markAttendance(
         organizationId: String,
@@ -62,6 +65,7 @@ class LocalAttendanceRepository(
         )
 
         dao.saveAttendanceAndQueue(record, operation)
+        AttendanceSyncScheduler.enqueue(context, organizationId)
         return recordId
     }
 }
