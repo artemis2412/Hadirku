@@ -9,7 +9,7 @@ plugins {
 
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use(::load)
+    if (file.exists()) file.inputStream().use { input -> load(input) }
 }
 fun configValue(name: String): String =
     providers.gradleProperty(name).orNull ?: System.getenv(name) ?: localProperties.getProperty(name) ?: ""
