@@ -41,7 +41,6 @@ class LocalAttendanceRepository(
             .put("marked_by", markedBy)
             .put("note", note)
             .put("marked_at", timestamp)
-            .put("idempotency_key", recordId)
             .toString()
 
         val record = LocalAttendanceRecordEntity(
