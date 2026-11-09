@@ -7,7 +7,8 @@ HADIRKU integrates only through the official Meta WhatsApp Business Platform / C
 - `whatsapp_settings`: organization-scoped phone number and WhatsApp Business Account identifiers. Provider credentials are not stored here.
 - `whatsapp_consents`: per-person, per-recipient (self/guardian) opt-in/opt-out evidence. Phone numbers are stored in E.164 format.
 - `whatsapp_templates`: organization-scoped template metadata and provider approval state.
-- `whatsapp_messages`: idempotent message queue and delivery history.
+- `whatsapp_messages`: idempotent message queue and current delivery state.
+- `whatsapp_message_events`: append-only delivery event timeline; only the server-side worker can write events.
 
 RLS scopes every row by organization membership and role. A database trigger rejects queue inserts unless the recipient has active recorded consent and the template is approved and active. Client users cannot update delivery states; provider workers will own those transitions.
 
