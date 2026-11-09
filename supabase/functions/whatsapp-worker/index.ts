@@ -111,6 +111,14 @@ Deno.serve(async (req: Request) => {
           error_code: String(providerError.code ?? response.status).slice(0, 80),
           error_message: String(providerError.message ?? "WhatsApp provider rejected the message").slice(0, 500),
         }).eq("id", msg.id).eq("delivery_status", "sending");
+        await admin.from("whatsapp_message_events").insert({
+          organization_id: msg.organization_id,
+          message_id: msg.id,
+          event_key: `attempt:${msg.id}:${msg.attempts}:failed`,
+          event_type: "failed",
+          provider_status: String(response.status),
+          sanitized_payload: { http_status: response.status, error_code: String(providerError.code ?? response.status).slice(0, 80), retry_scheduled: canRetry },
+        });
         if (canRetry) result.retried++; else result.failed++;
         continue;
       }
@@ -123,6 +131,14 @@ Deno.serve(async (req: Request) => {
           error_code: "PROVIDER_RESPONSE_INVALID",
           error_message: "Provider response did not include a message ID",
         }).eq("id", msg.id).eq("delivery_status", "sending");
+        await admin.from("whatsapp_message_events").insert({
+          organization_id: msg.organization_id,
+          message_id: msg.id,
+          event_key: `attempt:${msg.id}:${msg.attempts}:invalid-response`,
+          event_type: "failed",
+          provider_status: "invalid_provider_response",
+          sanitized_payload: { reason: "missing_provider_message_id" },
+        });
         result.failed++;
         continue;
       }
@@ -159,6 +175,14 @@ Deno.serve(async (req: Request) => {
         error_code: "WORKER_NETWORK_ERROR",
         error_message: error instanceof Error ? error.message.slice(0, 400) : "Unknown worker error",
       }).eq("id", msg.id).eq("delivery_status", "sending");
+      await admin.from("whatsapp_message_events").insert({
+        organization_id: msg.organization_id,
+        message_id: msg.id,
+        event_key: `attempt:${msg.id}:${msg.attempts}:network-error`,
+        event_type: "failed",
+        provider_status: "worker_network_error",
+        sanitized_payload: { reason: "network_error" },
+      });
       result.failed++;
     }
   }
