@@ -162,6 +162,9 @@ private fun HomeScreen(
     val selectedId by organizationViewModel.selectedOrganizationId.collectAsState()
     val loading by organizationViewModel.loading.collectAsState()
     val error by organizationViewModel.error.collectAsState()
+    val cacheLoading by organizationViewModel.cacheLoading.collectAsState()
+    val cacheResult by organizationViewModel.cacheResult.collectAsState()
+    val cacheError by organizationViewModel.cacheError.collectAsState()
 
     LaunchedEffect(email) { organizationViewModel.load() }
 
@@ -206,6 +209,20 @@ private fun HomeScreen(
             color = Teal,
             fontWeight = FontWeight.SemiBold,
         )
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = organizationViewModel::refreshOrganizationData,
+            enabled = selectedId != null && !cacheLoading,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(14.dp),
+        ) {
+            if (cacheLoading) CircularProgressIndicator(modifier = Modifier.width(20.dp), color = Color.White, strokeWidth = 2.dp)
+            else Text("Perbarui data offline")
+        }
+        cacheError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+        cacheResult?.let {
+            Text("Tersimpan di perangkat: ${it.peopleCount} anggota · ${it.unitCount} unit · ${it.statusCount} status presensi", color = Teal, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+        }
         Spacer(Modifier.height(18.dp))
         FeatureCard("Presensi", "Pencatatan hadir, izin, sakit, terlambat, dan alpa.")
         Spacer(Modifier.height(12.dp))
@@ -214,7 +231,7 @@ private fun HomeScreen(
         FeatureCard("Riwayat & laporan", "Rekap presensi dan laporan per periode.")
         Spacer(Modifier.height(18.dp))
         Text(
-            "Data organisasi dimuat dari Supabase sesuai keanggotaan akun. Modul presensi dan sinkronisasi akan dihubungkan berikutnya.",
+            "Pilih organisasi lalu perbarui data agar anggota, unit, dan status presensi tersimpan di perangkat untuk penggunaan offline.",
             color = Muted,
             style = MaterialTheme.typography.bodySmall,
         )
