@@ -14,13 +14,14 @@ RLS scopes every row by organization membership and role. A database trigger rej
 
 ## Provider credentials
 
-For a single-business development connection, provider credentials may be stored as Supabase Edge Function Secrets:
+Each organization's Cloud API access token is stored separately in Supabase Vault. The browser sends it to the authenticated `whatsapp-credentials` Edge Function; that function verifies the signed-in user is an active organization owner/admin before writing through a service-role-only RPC. The token is never returned to the browser or stored in the public settings table.
 
-- `WHATSAPP_ACCESS_TOKEN`
-- `WHATSAPP_VERIFY_TOKEN`
-- `WHATSAPP_APP_SECRET`
+The webhook uses app-level Edge Function secrets:
 
-**Multi-tenant production requirement:** each organization may connect a different WABA and phone number. Do not use one global access token for all tenants. Implement per-organization credential storage encrypted with Supabase Vault or an external KMS, and keep the encryption/decryption path server-side only. The organization settings table stores only non-secret Meta identifiers (`phone_number_id`, `business_account_id`, display phone number).
+- `WHATSAPP_VERIFY_TOKEN` — Meta webhook subscription verification.
+- `WHATSAPP_APP_SECRET` — HMAC SHA-256 signature verification.
+
+The worker uses `META_GRAPH_API_VERSION` (for example, a currently supported `vNN.0`) and the built-in `SUPABASE_SERVICE_ROLE_KEY`. The organization settings table stores only non-secret Meta identifiers (`phone_number_id`, `business_account_id`, display phone number).
 
 ## Activation checklist
 
@@ -29,7 +30,9 @@ For a single-business development connection, provider credentials may be stored
 3. Add the provider secrets in the HADIRKU Supabase project.
 4. Submit approved Utility templates in Meta WhatsApp Manager and record their exact provider names/languages.
 5. Record documented recipient consent before any message is queued.
-6. Deploy and test the authenticated queue worker and signed webhook handler before enabling sending in production.
+6. Configure `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, and `META_GRAPH_API_VERSION` in Supabase Edge Function Secrets.
+7. Configure the Meta webhook URL as `https://qmmdhjjezuflznapalbo.supabase.co/functions/v1/whatsapp-webhook` and subscribe to the `messages` field.
+8. Deploy and test the authenticated queue worker and signed webhook handler before enabling sending in production.
 
 ## Compliance and reliability
 
@@ -42,4 +45,4 @@ For a single-business development connection, provider credentials may be stored
 
 ## Current state
 
-The database foundation and RLS are deployed. Sending is not enabled yet: Meta credentials, approved templates, worker, and webhook configuration are still required.
+The database foundation, per-organization Vault credential storage, authenticated credential endpoint, queue worker, and signed webhook handler are deployed. Sending remains disabled by default (`sending_enabled = false`) until Meta app secrets, a verified business phone, approved templates, consent records, and production tests are complete.
