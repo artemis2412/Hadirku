@@ -27,7 +27,7 @@ object AttendanceSyncScheduler {
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             "hadirku-attendance-sync-$organizationId",
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request,
         )
     }
