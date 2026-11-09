@@ -9,7 +9,7 @@ import id.artemis.hadirku.data.local.LocalAttendanceRepository
 class HadirkuApplication : Application() {
     val localDatabase: HadirkuDatabase by lazy { LocalDatabaseProvider.get(this) }
     val attendanceRepository: LocalAttendanceRepository by lazy {
-        LocalAttendanceRepository(localDatabase.attendanceDao())
+        LocalAttendanceRepository(localDatabase.attendanceDao(), this)
     }
     override fun onCreate() {
         super.onCreate()
