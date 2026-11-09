@@ -9,8 +9,10 @@ import androidx.room.RoomDatabase
         LocalAttendanceSessionEntity::class,
         LocalAttendanceRecordEntity::class,
         SyncOutboxEntity::class,
+        LocalUnitEntity::class,
+        LocalAttendanceStatusEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class HadirkuDatabase : RoomDatabase() {
