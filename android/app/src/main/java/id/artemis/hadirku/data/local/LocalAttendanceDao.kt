@@ -36,7 +36,7 @@ interface LocalAttendanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAttendanceRecords(records: List<LocalAttendanceRecordEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun enqueue(operation: SyncOutboxEntity)
 
     @Query("SELECT * FROM sync_outbox WHERE organizationId = :organizationId ORDER BY createdAt, id")
