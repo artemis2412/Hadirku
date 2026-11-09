@@ -5,6 +5,7 @@ type ClaimedJob = {
   message: {
     id: string;
     organization_id: string;
+    person_id: string | null;
     recipient_phone: string;
     recipient_type: "self" | "guardian";
     template_name_snapshot: string;
@@ -48,7 +49,7 @@ Deno.serve(async (req: Request) => {
         .from("whatsapp_consents")
         .select("id")
         .eq("organization_id", msg.organization_id)
-        .eq("person_id", msg.id ? (await admin.from("whatsapp_messages").select("person_id").eq("id", msg.id).single()).data?.person_id : null)
+        .eq("person_id", msg.person_id)
         .eq("recipient_type", msg.recipient_type)
         .eq("phone_number", msg.recipient_phone)
         .eq("consent_status", "opted_in")
