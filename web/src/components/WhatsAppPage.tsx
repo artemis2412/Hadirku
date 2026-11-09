@@ -8,6 +8,7 @@ type Person = { id: string; full_name: string; phone: string | null; guardian_na
 type Consent = { id: string; person_id: string; recipient_type: string; phone_number: string; consent_status: string; consent_method: string; consented_at: string | null; revoked_at: string | null }
 type Template = { id: string; template_key: string; display_name: string; provider_template_name: string | null; language_code: string; category: string; body_preview: string; approval_status: string; is_active: boolean }
 type Message = { id: string; recipient_phone: string; recipient_type: string; template_name_snapshot: string; delivery_status: string; created_at: string; error_message: string | null }
+type MessageEvent = { id: string; message_id: string; event_type: string; provider_status: string | null; provider_timestamp: string | null; received_at: string }
 
 const e164 = /^\+[1-9][0-9]{7,14}$/
 const statusLabel: Record<string,string> = { pending:'Menunggu', opted_in:'Disetujui', opted_out:'Berhenti', draft:'Draft', submitted:'Diajukan', approved:'Disetujui Meta', rejected:'Ditolak', paused:'Dijeda', queued:'Antrean', sending:'Mengirim', sent:'Terkirim', delivered:'Diterima', read:'Dibaca', failed:'Gagal', cancelled:'Dibatalkan' }
@@ -17,6 +18,7 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
   const [consents,setConsents] = useState<Consent[]>([])
   const [templates,setTemplates] = useState<Template[]>([])
   const [messages,setMessages] = useState<Message[]>([])
+  const [events,setEvents] = useState<MessageEvent[]>([])
   const [settings,setSettings] = useState<{id:string;is_enabled:boolean;phone_number_id:string|null;business_account_id:string|null;display_phone_number:string|null;default_language:string}|null>(null)
   const [busy,setBusy] = useState(true)
   const [saving,setSaving] = useState(false)
@@ -43,21 +45,22 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
   const load = useCallback(async () => {
     if (!supabase) return
     setBusy(true); setError('')
-    const [s,p,c,t,m] = await Promise.all([
+    const [s,p,c,t,m,ev] = await Promise.all([
       supabase.from('whatsapp_settings').select('id,is_enabled,phone_number_id,business_account_id,display_phone_number,default_language').eq('organization_id',organization.id).maybeSingle(),
       supabase.from('people').select('id,full_name,phone,guardian_name,guardian_phone').eq('organization_id',organization.id).eq('is_active',true).order('full_name'),
       supabase.from('whatsapp_consents').select('id,person_id,recipient_type,phone_number,consent_status,consent_method,consented_at,revoked_at').eq('organization_id',organization.id).order('updated_at',{ascending:false}),
       supabase.from('whatsapp_templates').select('id,template_key,display_name,provider_template_name,language_code,category,body_preview,approval_status,is_active').eq('organization_id',organization.id).order('created_at',{ascending:false}),
-      supabase.from('whatsapp_messages').select('id,recipient_phone,recipient_type,template_name_snapshot,delivery_status,created_at,error_message').eq('organization_id',organization.id).order('created_at',{ascending:false}).limit(30)
+      supabase.from('whatsapp_messages').select('id,recipient_phone,recipient_type,template_name_snapshot,delivery_status,created_at,error_message').eq('organization_id',organization.id).order('created_at',{ascending:false}).limit(30),
+      supabase.from('whatsapp_message_events').select('id,message_id,event_type,provider_status,provider_timestamp,received_at').eq('organization_id',organization.id).order('received_at',{ascending:false}).limit(50)
     ])
-    const firstError = s.error || p.error || c.error || t.error || m.error
+    const firstError = s.error || p.error || c.error || t.error || m.error || ev.error
     if (firstError) setError(firstError.message)
     if (s.data) {
       setSettings(s.data); setPhoneNumberId(s.data.phone_number_id??''); setBusinessAccountId(s.data.business_account_id??'')
       setDisplayPhone(s.data.display_phone_number??''); setDefaultLanguage(s.data.default_language??'id'); setEnabled(s.data.is_enabled)
     } else { setSettings(null); setPhoneNumberId(''); setBusinessAccountId(''); setDisplayPhone(''); setDefaultLanguage('id'); setEnabled(false) }
     setPeople((p.data??[]) as Person[]); setConsents((c.data??[]) as Consent[])
-    setTemplates((t.data??[]) as Template[]); setMessages((m.data??[]) as Message[])
+    setTemplates((t.data??[]) as Template[]); setMessages((m.data??[]) as Message[]); setEvents((ev.data??[]) as MessageEvent[])
     setBusy(false)
   },[organization.id])
   useEffect(()=>{void load()},[load])
@@ -157,6 +160,10 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
       <section className="panel wa-panel">
         <div className="panel-heading"><div><h2><Clock3 size={18}/> Riwayat pengiriman</h2><p>30 aktivitas terbaru dari antrean pesan.</p></div></div>
         <div className="table-wrap"><table className="members-table"><thead><tr><th>Penerima</th><th>Template</th><th>Status</th><th>Waktu</th></tr></thead><tbody>{messages.map(m=><tr key={m.id}><td>{m.recipient_phone}<small>{m.recipient_type==='guardian'?'Orang tua / wali':'Anggota'}</small></td><td>{m.template_name_snapshot}</td><td><span className={'member-status '+(['sent','delivered','read'].includes(m.delivery_status)?'active':'inactive')}>{statusLabel[m.delivery_status]??m.delivery_status}</span>{m.error_message&&<small>{m.error_message}</small>}</td><td>{new Date(m.created_at).toLocaleString('id-ID')}</td></tr>)}</tbody></table>{messages.length===0&&<div className="empty-state">Belum ada pesan. Antrean baru akan diaktifkan setelah worker resmi siap.</div>}</div>
+      </section>
+      <section className="panel wa-panel">
+        <div className="panel-heading"><div><h2><Clock3 size={18}/> Jejak status pesan</h2><p>Riwayat perubahan status yang diterima dari webhook provider.</p></div></div>
+        <div className="table-wrap"><table className="members-table"><thead><tr><th>Pesan</th><th>Peristiwa</th><th>Status provider</th><th>Waktu diterima</th></tr></thead><tbody>{events.map(event=><tr key={event.id}><td><small>{event.message_id.slice(0,8)}…</small></td><td><span className="member-status active">{statusLabel[event.event_type]??event.event_type}</span></td><td>{event.provider_status??'—'}</td><td>{new Date(event.provider_timestamp??event.received_at).toLocaleString('id-ID')}</td></tr>)}</tbody></table>{events.length===0&&<div className="empty-state">Belum ada event status dari WhatsApp.</div>}</div>
       </section>
     </>}
   </>
