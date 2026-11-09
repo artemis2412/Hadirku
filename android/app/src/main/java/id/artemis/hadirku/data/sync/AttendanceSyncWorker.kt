@@ -7,7 +7,7 @@ import id.artemis.hadirku.BuildConfig
 import id.artemis.hadirku.HadirkuApplication
 import id.artemis.hadirku.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.currentSessionOrNull
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.HttpTimeout
@@ -18,7 +18,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
-import io.ktor.client.call.body
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -38,9 +37,8 @@ class AttendanceSyncWorker(
 
         if (!SupabaseProvider.isConfigured) return@withContext Result.failure()
 
-        val session = runCatching {
-            SupabaseProvider.client.auth.currentSessionOrNull()
-        }.getOrNull() ?: return@withContext Result.retry()
+        val session = (SupabaseProvider.client.auth.sessionStatus.value as? SessionStatus.Authenticated)
+            ?.session ?: return@withContext Result.retry()
         val accessToken = session.accessToken
         if (accessToken.isBlank()) return@withContext Result.retry()
 
