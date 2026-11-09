@@ -1,6 +1,9 @@
 import {useCallback,useEffect,useState} from 'react'
 import {Activity,CalendarCheck,CheckCircle2,CircleAlert,ClipboardList,Loader2} from 'lucide-react'
 import {supabase} from '../lib/supabase'
+import * as XLSX from 'xlsx'
+import {jsPDF} from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 type Organization={id:string;name:string;timezone:string}
 type Unit={id:string;name:string;unit_type:string}
@@ -36,13 +39,33 @@ export default function ReportsPage({organization}:{organization:Organization}){
  const excused=records.filter(r=>statusMap.get(r.status_id)?.is_excused).length
  const other=records.length-present-excused,rate=records.length?Math.round(present/records.length*100):0
  const members=people.map(p=>{const own=records.filter(r=>r.person_id===p.id),hadir=own.filter(r=>statusMap.get(r.status_id)?.is_present).length,izin=own.filter(r=>statusMap.get(r.status_id)?.is_excused).length;return {...p,total:own.length,hadir,izin,other:own.length-hadir-izin,rate:own.length?Math.round(hadir/own.length*100):0}}).filter(p=>p.total).sort((a,b)=>a.full_name.localeCompare(b.full_name))
+ function exportRows(){
+  return records.map(r=>{const s=sessions.find(x=>x.id===r.session_id),p=personMap.get(r.person_id);return {Tanggal:s?.attendance_date??'',Sesi:s?.title??'',Anggota:p?.full_name??'',Kode:p?.external_code??'',Unit:units.find(x=>x.id===p?.unit_id)?.name??'',Status:statusMap.get(r.status_id)?.label??''}})
+ }
+ function exportExcel(){
+  const detail=exportRows()
+  const summary=[['LAPORAN PRESENSI HADIRKU'],['Organisasi',organization.name],['Periode',from+' s.d. '+to],['Jumlah sesi',sessions.length],['Jumlah catatan',records.length],['Hadir',present],['Izin / dispensasi',excused],['Tidak hadir / lainnya',other],['Tingkat kehadiran',rate+'%'],[],['Status','Jumlah'],...statuses.map(s=>[s.label,countByCode[s.code]??0])]
+  const workbook=XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(summary),'Ringkasan')
+  XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet(detail),'Detail Presensi')
+  XLSX.writeFile(workbook,'hadirku-laporan-'+from+'-'+to+'.xlsx')
+ }
+ function exportPdf(){
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
+  doc.setFontSize(18);doc.text('Laporan Presensi HADIRKU',14,16)
+  doc.setFontSize(10);doc.text('Organisasi: '+organization.name,14,23)
+  doc.text('Periode: '+from+' sampai '+to,14,29)
+  doc.text('Sesi: '+sessions.length+' | Catatan: '+records.length+' | Hadir: '+present+' | Izin: '+excused+' | Tidak hadir/lainnya: '+other+' | Kehadiran: '+rate+'%',14,35)
+  autoTable(doc,{startY:42,head:[['Tanggal','Sesi','Anggota','Kode','Unit','Status']],body:exportRows().map(r=>[r.Tanggal,r.Sesi,r.Anggota,r.Kode,r.Unit,r.Status]),styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[34,86,77]},margin:{left:14,right:14}})
+  doc.save('hadirku-laporan-'+from+'-'+to+'.pdf')
+ }
  function exportCsv(){
   const rows=[['Tanggal','Sesi','Anggota','Kode','Unit','Status'],...records.map(r=>{const s=sessions.find(x=>x.id===r.session_id),p=personMap.get(r.person_id);return [s?.attendance_date??'',s?.title??'',p?.full_name??'',p?.external_code??'',units.find(x=>x.id===p?.unit_id)?.name??'',statusMap.get(r.status_id)?.label??'']})]
   const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),a=document.createElement('a');a.href=url;a.download='hadirku-laporan-'+from+'-'+to+'.csv';a.click();URL.revokeObjectURL(url)
  }
  const Stat=({icon:Icon,label,value,note,color}:{icon:any;label:string;value:string;note:string;color:string})=><article className="stat-card"><div className={'stat-icon '+color}><Icon size={19}/></div><p>{label}</p><strong>{value}</strong><small>{note}</small></article>
- return <><section className="welcome-row"><div><p className="eyebrow">ANALISIS KEHADIRAN</p><h1>Laporan Presensi</h1><p className="muted">Rekap kehadiran berdasarkan periode dan unit organisasi.</p></div><button className="primary-btn" onClick={exportCsv} disabled={!records.length}><ClipboardList size={16}/> Ekspor CSV</button></section>
+ return <><section className="welcome-row"><div><p className="eyebrow">ANALISIS KEHADIRAN</p><h1>Laporan Presensi</h1><p className="muted">Rekap kehadiran berdasarkan periode dan unit organisasi.</p></div><div className="report-export-actions"><button className="secondary-btn" onClick={exportCsv} disabled={!records.length}>CSV</button><button className="secondary-btn" onClick={exportExcel} disabled={!records.length}>Excel</button><button className="primary-btn" onClick={exportPdf} disabled={!records.length}>PDF</button></div></section>
  <section className="panel report-filters"><label>Dari tanggal<input type="date" value={from} max={to} onChange={e=>setFrom(e.target.value)}/></label><label>Sampai tanggal<input type="date" value={to} min={from} onChange={e=>setTo(e.target.value)}/></label><label>Unit / kelas<select value={unitId} onChange={e=>setUnitId(e.target.value)}><option value="all">Semua unit</option>{units.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label><button className="secondary-btn" onClick={()=>void load()} disabled={busy}>{busy?<Loader2 className="spin" size={15}/>:<Activity size={15}/>} Perbarui</button></section>
  {error&&<div className="form-error">{error}</div>}
  <section className="stats-grid report-stats"><Stat icon={CalendarCheck} label="Sesi presensi" value={String(sessions.length)} note="Dalam periode terpilih" color="teal"/><Stat icon={CheckCircle2} label="Hadir" value={String(present)} note="Status yang dihitung hadir" color="blue"/><Stat icon={CircleAlert} label="Izin / dispensasi" value={String(excused)} note="Status yang dikecualikan" color="amber"/><Stat icon={Activity} label="Tingkat kehadiran" value={records.length?rate+'%':'—'} note={records.length?present+' dari '+records.length+' catatan':'Belum ada catatan'} color="violet"/></section>
