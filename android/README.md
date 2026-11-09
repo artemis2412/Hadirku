@@ -37,6 +37,7 @@ GitHub Actions also assembles a debug APK and publishes it as the `hadirku-andro
 ## Implemented
 
 - Native Compose login using Supabase Auth.
+- Authenticated organization membership loading and in-app organization selection using Supabase RLS.
 - Persistent Supabase session state and deep-link callback registration (`hadirku://auth-callback`).
 - Room database with local people, attendance sessions, attendance records, and sync outbox.
 - Local-first attendance repository: attendance and its outbox operation are committed in one Room transaction.
@@ -50,7 +51,7 @@ GitHub Actions also assembles a debug APK and publishes it as the `hadirku-andro
 
 ## Still to build
 
-- Organization membership loading and organization switcher.
+- Persisting the selected organization and triggering pending sync when it becomes active.
 - Scheduling periodic reconciliation when an organization becomes active.
 - Supabase pull sync for people, units, statuses, and sessions; current worker only pushes attendance records.
 - Server-side idempotency and conflict behavior verification against a non-production test account.
