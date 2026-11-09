@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { AlertCircle, CheckCircle2, Clock3, MessageCircle, Plus, Save, ShieldCheck, Smartphone, Users, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock3, MessageCircle, Plus, Save, ShieldCheck, Smartphone, Users, Loader2, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 type Organization = { id: string; name: string; organization_type: string; timezone: string }
@@ -29,6 +29,8 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
   const [displayPhone,setDisplayPhone] = useState('')
   const [defaultLanguage,setDefaultLanguage] = useState('id')
   const [enabled,setEnabled] = useState(false)
+  const [accessToken,setAccessToken] = useState('')
+  const [credentialSaving,setCredentialSaving] = useState(false)
   const [personId,setPersonId] = useState('')
   const [recipientType,setRecipientType] = useState<'self'|'guardian'>('self')
   const [phone,setPhone] = useState('')
@@ -85,6 +87,17 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
     setSaving(false)
   }
 
+  async function saveAccessToken(e:FormEvent) {
+    e.preventDefault()
+    if(!supabase)return
+    if(accessToken.trim().length<30){setError('Token akses Meta tidak valid.');return}
+    setCredentialSaving(true);setError('');setNotice('')
+    const {error}=await supabase.functions.invoke('whatsapp-credentials',{body:{organization_id:organization.id,access_token:accessToken.trim()}})
+    if(error){setError(error.message||'Gagal menyimpan token dengan aman.')}
+    else{setAccessToken('');setNotice('Token akses berhasil disimpan terenkripsi di Supabase Vault untuk organisasi ini.')}
+    setCredentialSaving(false)
+  }
+
   async function saveConsent(e:FormEvent) {
     e.preventDefault();if(!supabase)return
     if(!personId){setError('Pilih anggota terlebih dahulu.');return}
@@ -122,12 +135,21 @@ export default function WhatsAppPage({ organization, userId }: { organization: O
     {busy?<section className="panel"><div className="empty-state"><Loader2 className="spin"/> Memuat modul WhatsApp...</div></section>:<>
       <section className="panel wa-panel">
         <div className="panel-heading"><div><h2><Smartphone size={18}/> Koneksi WhatsApp Business</h2><p>Isi ID non-rahasia dari Meta Business Platform.</p></div><span className="wa-state">{settings?.is_enabled?'Diaktifkan di pengaturan':'Belum diaktifkan'}</span></div>
-        <div className="wa-warning"><AlertCircle size={17}/><span>Token akses dan App Secret tidak disimpan di sini. Simpan hanya pada Supabase Edge Function Secrets. Tombol aktif tidak mengirim pesan sebelum worker resmi siap.</span></div>
+        <div className="wa-warning"><AlertCircle size={17}/><span>Token akses disimpan terenkripsi per organisasi di Supabase Vault. Token tidak ditampilkan kembali dan tidak disimpan di kode aplikasi.</span></div>
         <form className="member-form wa-form" onSubmit={saveSettings}>
           <div className="form-two"><label>Phone Number ID<input value={phoneNumberId} onChange={e=>setPhoneNumberId(e.target.value)} placeholder="ID nomor dari Meta"/></label><label>WhatsApp Business Account ID<input value={businessAccountId} onChange={e=>setBusinessAccountId(e.target.value)} placeholder="WABA ID"/></label></div>
           <div className="form-two"><label>Nomor bisnis tampil<input value={displayPhone} onChange={e=>setDisplayPhone(e.target.value)} placeholder="+62..."/></label><label>Bahasa template<select value={defaultLanguage} onChange={e=>setDefaultLanguage(e.target.value)}><option value="id">Indonesia (id)</option><option value="en_US">English (US)</option></select></label></div>
           <label className="wa-toggle"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Tandai integrasi siap dikonfigurasi (belum mengaktifkan pengiriman)</label>
           <div className="modal-actions"><button className="primary-btn" disabled={saving}>{saving?<Loader2 className="spin" size={16}/>:<Save size={16}/>} Simpan pengaturan</button></div>
+        </form>
+      </section>
+
+      <section className="panel wa-panel">
+        <div className="panel-heading"><div><h2><KeyRound size={18}/> Token akses Meta</h2><p>Simpan token Cloud API khusus organisasi ini.</p></div><span className="wa-state">Vault terenkripsi</span></div>
+        <div className="wa-warning"><ShieldCheck size={17}/><span>Hanya owner/admin yang dapat menyimpan token. Token dikirim langsung ke endpoint server, disimpan terenkripsi, dan tidak dapat dibaca kembali dari aplikasi. Pengiriman masih nonaktif sampai pengujian dan aktivasi server dilakukan.</span></div>
+        <form className="member-form wa-form" onSubmit={saveAccessToken}>
+          <label>WhatsApp Cloud API access token<input type="password" autoComplete="new-password" value={accessToken} onChange={e=>setAccessToken(e.target.value)} placeholder="Tempel token akses Meta di sini" required minLength={30}/></label>
+          <div className="modal-actions"><button className="primary-btn" disabled={credentialSaving||!accessToken.trim()}>{credentialSaving?<Loader2 className="spin" size={16}/>:<Save size={16}/>} Simpan token terenkripsi</button></div>
         </form>
       </section>
 
