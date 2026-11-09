@@ -65,3 +65,28 @@ data class SyncOutboxEntity(
     val attemptCount: Int = 0,
     val lastError: String? = null,
 )
+
+
+@Entity(tableName = "local_units", indices = [Index("organizationId")])
+data class LocalUnitEntity(
+    @PrimaryKey val id: String,
+    val organizationId: String,
+    val name: String,
+    val unitType: String,
+    val parentUnitId: String?,
+    val isActive: Boolean,
+    val updatedAt: String,
+)
+
+@Entity(tableName = "local_statuses", indices = [Index("organizationId"), Index(value = ["organizationId", "sortOrder"])])
+data class LocalAttendanceStatusEntity(
+    @PrimaryKey val id: String,
+    val organizationId: String,
+    val label: String,
+    val code: String,
+    val isPresent: Boolean,
+    val isExcused: Boolean,
+    val sortOrder: Int,
+    val isActive: Boolean,
+    val updatedAt: String,
+)
