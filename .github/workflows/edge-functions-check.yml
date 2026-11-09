@@ -1,0 +1,28 @@
+name: HADIRKU Edge Functions CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/edge-functions-check.yml"
+  pull_request:
+    paths:
+      - "supabase/functions/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/edge-functions-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check WhatsApp Edge Functions
+        run: |
+          deno check supabase/functions/whatsapp-credentials/index.ts
+          deno check supabase/functions/whatsapp-worker/index.ts
+          deno check supabase/functions/whatsapp-webhook/index.ts
