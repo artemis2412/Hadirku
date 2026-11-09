@@ -25,3 +25,26 @@
 .report-export-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .report-export-actions .primary-btn,.report-export-actions .secondary-btn{min-height:38px;padding:0 14px}
 @media(max-width:700px){.report-export-actions{width:100%}.report-export-actions button{flex:1}}
+
+
+/* WhatsApp Business module */
+.wa-stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:18px}
+.wa-locked{display:inline-flex;align-items:center;gap:7px;border:1px solid #f0dfb8;background:#fff9e9;color:#9a6b1e;padding:9px 12px;border-radius:9px;font-size:11px;font-weight:700;white-space:nowrap}
+.wa-panel{padding:20px;margin-bottom:18px}
+.wa-panel .panel-heading h2{display:flex;align-items:center;gap:8px}
+.wa-panel .panel-heading p{margin-top:5px}
+.wa-state{font-size:10px;color:#607b72;background:#f1f7f4;border-radius:20px;padding:6px 10px;white-space:nowrap}
+.wa-warning{display:flex;align-items:flex-start;gap:10px;padding:12px 13px;border:1px solid #f0e4c9;background:#fffaf0;color:#87662d;border-radius:10px;font-size:11px;line-height:1.6;margin:14px 0}
+.wa-warning svg{flex:none;margin-top:1px}
+.wa-form{margin-top:16px}
+.wa-toggle{display:flex!important;align-items:center;gap:9px!important;font-weight:600!important;color:#506963!important}
+.wa-toggle input{width:16px!important;height:16px;accent-color:#168477}
+.wa-consent-note{background:#f3f8f6;border-radius:9px;padding:11px 13px;color:#627973;font-size:11px;line-height:1.6}
+.page-success{margin-bottom:16px}
+.wa-template-list{margin-top:15px;border-top:1px solid #edf1ef}
+.wa-template{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 2px;border-bottom:1px solid #edf1ef}
+.wa-template b,.wa-template small{display:block}
+.wa-template b{font-size:12px;color:#29413e}
+.wa-template small{font-size:10px;color:#8b9b96;margin-top:4px}
+.wa-template p{font-size:11px;line-height:1.6;color:#61746f;margin:8px 0 0;white-space:pre-wrap}
+@media(max-width:700px){.wa-stats{grid-template-columns:1fr 1fr}.wa-locked{font-size:10px;padding:7px 9px}.wa-panel{padding:15px}.wa-template{flex-direction:column;gap:8px}}
