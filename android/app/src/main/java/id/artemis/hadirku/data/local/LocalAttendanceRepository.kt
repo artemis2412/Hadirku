@@ -24,7 +24,8 @@ class LocalAttendanceRepository(
         require(personId.isNotBlank()) { "Member is required" }
         require(statusId.isNotBlank()) { "Attendance status is required" }
 
-        val recordId = UUID.randomUUID().toString()
+        // Stable per organization/session/member: editing a mark updates the same local/server row.
+        val recordId = UUID.nameUUIDFromBytes("$organizationId:$sessionId:$personId".toByteArray()).toString()
         val timestamp = Instant.now().toString()
         val payload = JSONObject()
             .put("id", recordId)
@@ -48,7 +49,8 @@ class LocalAttendanceRepository(
             syncState = "pending",
         )
         val operation = SyncOutboxEntity(
-            id = UUID.randomUUID().toString(),
+            // Reuse the outbox identity so repeated offline edits collapse into the latest payload.
+            id = UUID.nameUUIDFromBytes("attendance-outbox:$recordId".toByteArray()).toString(),
             organizationId = organizationId,
             entityType = "attendance_record",
             operation = "upsert",
