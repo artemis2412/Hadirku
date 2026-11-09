@@ -659,6 +659,7 @@ export type Database = {
           is_enabled: boolean
           organization_id: string
           phone_number_id: string | null
+          sending_enabled: boolean
           updated_at: string
           updated_by: string | null
         }
@@ -672,6 +673,7 @@ export type Database = {
           is_enabled?: boolean
           organization_id: string
           phone_number_id?: string | null
+          sending_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -685,6 +687,7 @@ export type Database = {
           is_enabled?: boolean
           organization_id?: string
           phone_number_id?: string | null
+          sending_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -772,6 +775,15 @@ export type Database = {
           p_timezone?: string
         }
         Returns: string
+      }
+      whatsapp_claim_batch: { Args: { p_limit?: number }; Returns: Json }
+      whatsapp_set_access_token: {
+        Args: { p_access_token: string; p_organization_id: string }
+        Returns: undefined
+      }
+      whatsapp_set_sending_enabled: {
+        Args: { p_enabled: boolean; p_organization_id: string }
+        Returns: undefined
       }
     }
     Enums: {
