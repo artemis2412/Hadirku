@@ -15,6 +15,27 @@ interface LocalAttendanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPeople(people: List<LocalPersonEntity>)
 
+    @Query("DELETE FROM local_people WHERE organizationId = :organizationId")
+    suspend fun clearPeople(organizationId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertUnits(units: List<LocalUnitEntity>)
+
+    @Query("DELETE FROM local_units WHERE organizationId = :organizationId")
+    suspend fun clearUnits(organizationId: String)
+
+    @Query("SELECT * FROM local_units WHERE organizationId = :organizationId AND isActive = 1 ORDER BY name")
+    fun observeActiveUnits(organizationId: String): Flow<List<LocalUnitEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertStatuses(statuses: List<LocalAttendanceStatusEntity>)
+
+    @Query("DELETE FROM local_statuses WHERE organizationId = :organizationId")
+    suspend fun clearStatuses(organizationId: String)
+
+    @Query("SELECT * FROM local_statuses WHERE organizationId = :organizationId AND isActive = 1 ORDER BY sortOrder")
+    fun observeActiveStatuses(organizationId: String): Flow<List<LocalAttendanceStatusEntity>>
+
     @Query("SELECT * FROM local_attendance_sessions WHERE organizationId = :organizationId ORDER BY sessionDate DESC")
     fun observeSessions(organizationId: String): Flow<List<LocalAttendanceSessionEntity>>
 
