@@ -17,12 +17,14 @@ class LocalAttendanceRepository(
         sessionId: String,
         personId: String,
         statusId: String,
+        markedBy: String,
         note: String? = null,
     ): String {
         require(organizationId.isNotBlank()) { "Organization is required" }
         require(sessionId.isNotBlank()) { "Attendance session is required" }
         require(personId.isNotBlank()) { "Member is required" }
         require(statusId.isNotBlank()) { "Attendance status is required" }
+        require(markedBy.isNotBlank()) { "Authenticated user is required to mark attendance" }
 
         // Stable per organization/session/member: editing a mark updates the same local/server row.
         val recordId = UUID.nameUUIDFromBytes("$organizationId:$sessionId:$personId".toByteArray()).toString()
@@ -33,6 +35,7 @@ class LocalAttendanceRepository(
             .put("session_id", sessionId)
             .put("person_id", personId)
             .put("status_id", statusId)
+            .put("marked_by", markedBy)
             .put("note", note)
             .put("marked_at", timestamp)
             .put("idempotency_key", recordId)
