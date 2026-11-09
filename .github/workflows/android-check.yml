@@ -23,13 +23,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.8.2
-      - name: Install Android SDK 37
+      - name: Install Android SDK 36 (build-tools)
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Assemble debug APK
         working-directory: android
         run: gradle :app:assembleDebug -PSUPABASE_URL=https://qmmdhjjezuflznapalbo.supabase.co -PSUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_placeholder
