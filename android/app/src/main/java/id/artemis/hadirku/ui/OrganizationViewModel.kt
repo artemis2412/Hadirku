@@ -27,7 +27,7 @@ class OrganizationViewModel : ViewModel() {
             runCatching { repository.loadActiveOrganizations() }
                 .onSuccess { organizations ->
                     _organizations.value = organizations
-                    if (_selectedOrganizationId.value !in organizations.map { it.organizationId }) {
+                    if (organizations.none { it.organizationId == _selectedOrganizationId.value }) {
                         _selectedOrganizationId.value = organizations.firstOrNull()?.organizationId
                     }
                 }
