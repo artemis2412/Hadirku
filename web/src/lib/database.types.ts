@@ -494,6 +494,60 @@ export type Database = {
           },
         ]
       }
+      whatsapp_message_events: {
+        Row: {
+          event_key: string
+          event_type: string
+          id: string
+          message_id: string
+          organization_id: string
+          provider_message_id: string | null
+          provider_status: string | null
+          provider_timestamp: string | null
+          received_at: string
+          sanitized_payload: Json
+        }
+        Insert: {
+          event_key: string
+          event_type: string
+          id?: string
+          message_id: string
+          organization_id: string
+          provider_message_id?: string | null
+          provider_status?: string | null
+          provider_timestamp?: string | null
+          received_at?: string
+          sanitized_payload?: Json
+        }
+        Update: {
+          event_key?: string
+          event_type?: string
+          id?: string
+          message_id?: string
+          organization_id?: string
+          provider_message_id?: string | null
+          provider_status?: string | null
+          provider_timestamp?: string | null
+          received_at?: string
+          sanitized_payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_message_events_message_id_organization_id_fkey"
+            columns: ["message_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_message_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           attempts: number
