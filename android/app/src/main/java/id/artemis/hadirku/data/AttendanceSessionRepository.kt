@@ -67,7 +67,7 @@ class AttendanceSessionRepository(private val dao: LocalAttendanceDao) {
             val response = http.post("${BuildConfig.SUPABASE_URL}/rest/v1/attendance_sessions?select=id,organization_id,title,attendance_date,unit_id,session_status,updated_at") {
                 header(HttpHeaders.Authorization, "Bearer ${session.accessToken}")
                 header("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
-                header(HttpHeaders.Prefer, "return=representation")
+                header("Prefer", "return=representation")
                 contentType(ContentType.Application.Json)
                 setBody(body.toString())
             }
