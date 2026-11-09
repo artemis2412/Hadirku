@@ -17,7 +17,7 @@ fun quotedBuildConfig(value: String): String =
 
 android {
     namespace = "id.artemis.hadirku"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "id.artemis.hadirku"
         minSdk = 26
