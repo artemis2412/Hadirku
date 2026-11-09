@@ -428,6 +428,284 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_consents: {
+        Row: {
+          consent_method: string
+          consent_status: string
+          consent_text: string | null
+          consented_at: string | null
+          created_at: string
+          created_by: string | null
+          evidence_reference: string | null
+          id: string
+          organization_id: string
+          person_id: string
+          phone_number: string
+          recipient_type: string
+          revoked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          consent_method?: string
+          consent_status?: string
+          consent_text?: string | null
+          consented_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          evidence_reference?: string | null
+          id?: string
+          organization_id: string
+          person_id: string
+          phone_number: string
+          recipient_type?: string
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consent_method?: string
+          consent_status?: string
+          consent_text?: string | null
+          consented_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          evidence_reference?: string | null
+          id?: string
+          organization_id?: string
+          person_id?: string
+          phone_number?: string
+          recipient_type?: string
+          revoked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_consents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_consents_person_id_organization_id_fkey"
+            columns: ["person_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivery_status: string
+          error_code: string | null
+          error_message: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          language_code: string
+          organization_id: string
+          person_id: string | null
+          provider_message_id: string | null
+          read_at: string | null
+          recipient_phone: string
+          recipient_type: string
+          scheduled_at: string
+          sent_at: string | null
+          template_id: string
+          template_name_snapshot: string
+          template_variables: Json
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_status?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          language_code?: string
+          organization_id: string
+          person_id?: string | null
+          provider_message_id?: string | null
+          read_at?: string | null
+          recipient_phone: string
+          recipient_type: string
+          scheduled_at?: string
+          sent_at?: string | null
+          template_id: string
+          template_name_snapshot: string
+          template_variables?: Json
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_status?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          language_code?: string
+          organization_id?: string
+          person_id?: string | null
+          provider_message_id?: string | null
+          read_at?: string | null
+          recipient_phone?: string
+          recipient_type?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          template_id?: string
+          template_name_snapshot?: string
+          template_variables?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_person_id_organization_id_fkey"
+            columns: ["person_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_template_id_organization_id_fkey"
+            columns: ["template_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      whatsapp_settings: {
+        Row: {
+          business_account_id: string | null
+          created_at: string
+          created_by: string | null
+          default_language: string
+          display_phone_number: string | null
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          phone_number_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          business_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_language?: string
+          display_phone_number?: string | null
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          phone_number_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          business_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_language?: string
+          display_phone_number?: string | null
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          phone_number_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_templates: {
+        Row: {
+          approval_status: string
+          body_preview: string
+          category: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          language_code: string
+          organization_id: string
+          provider_template_name: string | null
+          rejection_reason: string | null
+          template_key: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          approval_status?: string
+          body_preview: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          organization_id: string
+          provider_template_name?: string | null
+          rejection_reason?: string | null
+          template_key: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          approval_status?: string
+          body_preview?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          organization_id?: string
+          provider_template_name?: string | null
+          rejection_reason?: string | null
+          template_key?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
