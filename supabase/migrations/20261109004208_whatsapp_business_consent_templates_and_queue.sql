@@ -116,13 +116,9 @@ alter table public.whatsapp_templates enable row level security;
 alter table public.whatsapp_messages enable row level security;
 create policy "WhatsApp settings: managers read settings" on public.whatsapp_settings
  for select to authenticated using (private.has_org_role(organization_id, array['owner','admin','manager']));
-create policy "WhatsApp settings: admins create settings" on public.whatsapp_settings
- for insert to authenticated with check (private.has_org_role(organization_id, array['owner','admin']));
-create policy "WhatsApp settings: admins update settings" on public.whatsapp_settings
- for update to authenticated using (private.has_org_role(organization_id, array['owner','admin']))
+create policy "WhatsApp settings: admins manage settings" on public.whatsapp_settings
+ for all to authenticated using (private.has_org_role(organization_id, array['owner','admin']))
  with check (private.has_org_role(organization_id, array['owner','admin']));
-create policy "WhatsApp settings: admins delete settings" on public.whatsapp_settings
- for delete to authenticated using (private.has_org_role(organization_id, array['owner','admin']));
 create policy "WhatsApp consent: managers read consent" on public.whatsapp_consents
  for select to authenticated using (private.has_org_role(organization_id, array['owner','admin','manager']));
 create policy "WhatsApp consent: staff manage consent" on public.whatsapp_consents
