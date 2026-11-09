@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +39,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import id.artemis.hadirku.auth.AuthViewModel
+import id.artemis.hadirku.data.OrganizationMembership
 import id.artemis.hadirku.data.SupabaseProvider
 import io.github.jan.supabase.auth.status.SessionStatus
 
@@ -45,7 +49,10 @@ private val Muted = Color(0xFF71827E)
 private val Canvas = Color(0xFFF4F7F6)
 
 @Composable
-fun HadirkuApp(authViewModel: AuthViewModel = viewModel()) {
+fun HadirkuApp(
+    authViewModel: AuthViewModel = viewModel(),
+    organizationViewModel: OrganizationViewModel = viewModel(),
+) {
     val sessionStatus by authViewModel.sessionStatus.collectAsState()
     val busy by authViewModel.busy.collectAsState()
     val error by authViewModel.error.collectAsState()
@@ -63,6 +70,7 @@ fun HadirkuApp(authViewModel: AuthViewModel = viewModel()) {
             when (sessionStatus) {
                 is SessionStatus.Authenticated -> HomeScreen(
                     email = (sessionStatus as SessionStatus.Authenticated).session.user?.email.orEmpty(),
+                    organizationViewModel = organizationViewModel,
                     onSignOut = authViewModel::signOut,
                 )
                 SessionStatus.Initializing -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -145,8 +153,21 @@ private fun LoginScreen(
 }
 
 @Composable
-private fun HomeScreen(email: String, onSignOut: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(22.dp)) {
+private fun HomeScreen(
+    email: String,
+    organizationViewModel: OrganizationViewModel,
+    onSignOut: () -> Unit,
+) {
+    val organizations by organizationViewModel.organizations.collectAsState()
+    val selectedId by organizationViewModel.selectedOrganizationId.collectAsState()
+    val loading by organizationViewModel.loading.collectAsState()
+    val error by organizationViewModel.error.collectAsState()
+
+    LaunchedEffect(email) { organizationViewModel.load() }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(22.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
                 Text("HADIRKU", color = Teal, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
@@ -157,6 +178,35 @@ private fun HomeScreen(email: String, onSignOut: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(email, color = Muted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(24.dp))
+
+        Text("Organisasi Anda", color = Ink, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        when {
+            loading -> CircularProgressIndicator(color = Teal, modifier = Modifier.padding(8.dp))
+            error != null -> Text(error ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            organizations.isEmpty() -> Text(
+                "Belum ada organisasi aktif di akun ini. Buat organisasi melalui dashboard web terlebih dahulu.",
+                color = Muted,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            else -> organizations.forEach { organization ->
+                OrganizationOption(
+                    organization = organization,
+                    selected = organization.organizationId == selectedId,
+                    onSelect = { organizationViewModel.select(organization.organizationId) },
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text(
+            selectedId?.let { id -> organizations.firstOrNull { it.organizationId == id }?.organizationName }
+                ?.let { "Organisasi aktif: $it" } ?: "Pilih organisasi untuk memulai.",
+            color = Teal,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(18.dp))
         FeatureCard("Presensi", "Pencatatan hadir, izin, sakit, terlambat, dan alpa.")
         Spacer(Modifier.height(12.dp))
         FeatureCard("Anggota", "Data peserta, siswa, karyawan, dan anggota organisasi.")
@@ -164,10 +214,35 @@ private fun HomeScreen(email: String, onSignOut: () -> Unit) {
         FeatureCard("Riwayat & laporan", "Rekap presensi dan laporan per periode.")
         Spacer(Modifier.height(18.dp))
         Text(
-            "Fondasi Android sudah terhubung ke autentikasi Supabase. Modul data dan sinkronisasi offline akan ditambahkan berikutnya.",
+            "Data organisasi dimuat dari Supabase sesuai keanggotaan akun. Modul presensi dan sinkronisasi akan dihubungkan berikutnya.",
             color = Muted,
             style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+@Composable
+private fun OrganizationOption(
+    organization: OrganizationMembership,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Button(
+        onClick = onSelect,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = if (selected) Teal else Color(0xFFE4EFED),
+            contentColor = if (selected) Color.White else Ink,
+        ),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(organization.organizationName, fontWeight = FontWeight.SemiBold)
+            Text(
+                "${organization.organizationType} · ${organization.role}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 
