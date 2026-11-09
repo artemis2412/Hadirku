@@ -20,3 +20,8 @@
 .report-status{border:1px solid #e9efec;border-radius:10px;padding:13px;display:grid;gap:5px}
 .report-status small{font-size:11px;color:#7c918b}.report-status b{font-size:23px;color:#29413e}.report-status span{font-size:10px;color:#91a09f}
 @media(max-width:700px){.report-filters{align-items:stretch}.report-filters label{min-width:100%;}.report-filters .secondary-btn{width:100%}.report-panel{padding:14px}}
+
+
+.report-export-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.report-export-actions .primary-btn,.report-export-actions .secondary-btn{min-height:38px;padding:0 14px}
+@media(max-width:700px){.report-export-actions{width:100%}.report-export-actions button{flex:1}}
