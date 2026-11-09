@@ -45,11 +45,11 @@ interface LocalAttendanceDao {
     @Query("UPDATE sync_outbox SET attemptCount = attemptCount + 1, lastError = :error WHERE id = :id")
     suspend fun recordSyncFailure(id: String, error: String?)
 
-    @Query("UPDATE local_attendance_records SET syncState = 'synced' WHERE id = :recordId")
-    suspend fun markRecordSynced(recordId: String)
+    @Query("UPDATE local_attendance_records SET syncState = 'synced' WHERE id = :recordId AND NOT EXISTS (SELECT 1 FROM sync_outbox WHERE id = :outboxId)")
+    suspend fun markRecordSynced(recordId: String, outboxId: String)
 
-    @Query("DELETE FROM sync_outbox WHERE id = :id")
-    suspend fun removeSyncedOperation(id: String)
+    @Query("DELETE FROM sync_outbox WHERE id = :id AND payloadJson = :sentPayload")
+    suspend fun removeSyncedOperation(id: String, sentPayload: String): Int
 
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE organizationId = :organizationId")
     fun observePendingCount(organizationId: String): Flow<Int>
