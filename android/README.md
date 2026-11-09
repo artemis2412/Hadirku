@@ -44,13 +44,14 @@ GitHub Actions also assembles a debug APK and publishes it as the `hadirku-andro
 - Pending outbox query, retry count, last-error tracking, and pending-count Flow.
 - WorkManager sync worker posts queued attendance records through Supabase REST using the active user's JWT and public publishable key; RLS remains enforced.
 - Network-connected unique work scheduling per organization with exponential retry for transient failures.
+- Each local attendance mark automatically enqueues its organization-scoped sync job.
 - Successful uploads mark the local record synced and remove its outbox item; authentication and server errors remain queued for retry.
 - Organization-scoped local queries.
 
 ## Still to build
 
 - Organization membership loading and organization switcher.
-- Automatic scheduling from the attendance UI after a local mark and when an organization becomes active.
+- Scheduling periodic reconciliation when an organization becomes active.
 - Supabase pull sync for people, units, statuses, and sessions; current worker only pushes attendance records.
 - Server-side idempotency and conflict behavior verification against a non-production test account.
 - Interactive Android attendance and member screens.
