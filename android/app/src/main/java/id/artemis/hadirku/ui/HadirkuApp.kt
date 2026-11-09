@@ -17,6 +17,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -165,6 +168,7 @@ private fun HomeScreen(
     val cacheLoading by organizationViewModel.cacheLoading.collectAsState()
     val cacheResult by organizationViewModel.cacheResult.collectAsState()
     val cacheError by organizationViewModel.cacheError.collectAsState()
+    var showAttendance by remember { mutableStateOf(false) }
 
     LaunchedEffect(email) { organizationViewModel.load() }
 
@@ -224,6 +228,12 @@ private fun HomeScreen(
             Text("Tersimpan di perangkat: ${it.peopleCount} anggota · ${it.unitCount} unit · ${it.statusCount} status presensi", color = Teal, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
         }
         Spacer(Modifier.height(18.dp))
+        Button(onClick = { showAttendance = !showAttendance }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), enabled = selectedId != null) { Text(if (showAttendance) "Tutup Presensi" else "Buka Presensi") }
+        if (showAttendance) {
+            Spacer(Modifier.height(12.dp))
+            AttendanceScreen(organizationViewModel)
+        }
+        Spacer(Modifier.height(12.dp))
         FeatureCard("Presensi", "Pencatatan hadir, izin, sakit, terlambat, dan alpa.")
         Spacer(Modifier.height(12.dp))
         FeatureCard("Anggota", "Data peserta, siswa, karyawan, dan anggota organisasi.")
@@ -271,5 +281,71 @@ private fun FeatureCard(title: String, description: String) {
         Text(title, color = Ink, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(5.dp))
         Text(description, color = Muted, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+
+@Composable
+private fun AttendanceScreen(viewModel: OrganizationViewModel) {
+    val sessions by viewModel.sessions.collectAsState()
+    val people by viewModel.people.collectAsState()
+    val statuses by viewModel.statuses.collectAsState()
+    val records by viewModel.records.collectAsState()
+    val busy by viewModel.actionBusy.collectAsState()
+    val message by viewModel.actionMessage.collectAsState()
+    var title by remember { mutableStateOf("") }
+    var selectedSessionId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.refreshSessions() }
+    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(16.dp)) {
+        Text("Presensi", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        Text("Buat sesi presensi baru", color = Muted, style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Nama sesi, misalnya Presensi Pagi") }, singleLine = true)
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = { viewModel.createSession(title); title = "" }, enabled = title.isNotBlank() && !busy, modifier = Modifier.fillMaxWidth()) {
+            Text(if (busy) "Memproses..." else "Buat sesi")
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Pilih sesi", fontWeight = FontWeight.SemiBold, color = Ink)
+        if (sessions.isEmpty()) Text("Belum ada sesi. Buat sesi saat perangkat terhubung internet.", color = Muted, style = MaterialTheme.typography.bodySmall)
+        sessions.forEach { session ->
+            OutlinedButton(onClick = { selectedSessionId = session.id; viewModel.observeSessionRecords(session.id) }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                Text((if (selectedSessionId == session.id) "✓ " else "") + session.title + " · " + session.sessionDate)
+            }
+        }
+        if (selectedSessionId != null) {
+            Spacer(Modifier.height(14.dp))
+            Text("Daftar anggota (${people.size})", fontWeight = FontWeight.SemiBold, color = Ink)
+            if (statuses.isEmpty()) Text("Status presensi belum tersimpan. Tekan Perbarui data offline terlebih dahulu.", color = Muted, style = MaterialTheme.typography.bodySmall)
+            people.forEach { person ->
+                val existing = records.firstOrNull { it.personId == person.id }
+                val defaultStatus = statuses.firstOrNull { it.isPresent } ?: statuses.firstOrNull()
+                var chosenStatusId by remember(person.id, existing?.statusId, defaultStatus?.id) { mutableStateOf(existing?.statusId ?: defaultStatus?.id.orEmpty()) }
+                var menuExpanded by remember(person.id) { mutableStateOf(false) }
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(person.fullName, color = Ink, fontWeight = FontWeight.Medium)
+                        person.memberCode?.let { Text(it, color = Muted, style = MaterialTheme.typography.labelSmall) }
+                        Text(if (existing != null) "Sudah ditandai" else "Belum ditandai", color = if (existing != null) Teal else Muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Box {
+                        OutlinedButton(onClick = { menuExpanded = true }, enabled = statuses.isNotEmpty()) {
+                            Text(statuses.firstOrNull { it.id == chosenStatusId }?.label ?: "Status")
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            statuses.forEach { status ->
+                                DropdownMenuItem(text = { Text(status.label) }, onClick = { chosenStatusId = status.id; menuExpanded = false })
+                            }
+                        }
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Button(onClick = { viewModel.markAttendance(selectedSessionId!!, person.id, chosenStatusId) }, enabled = chosenStatusId.isNotBlank()) { Text("Simpan") }
+                }
+            }
+        }
+        message?.let { Spacer(Modifier.height(10.dp)); Text(it, color = Teal, style = MaterialTheme.typography.bodySmall) }
+        Spacer(Modifier.height(6.dp))
+        Text("Penandaan disimpan lokal terlebih dahulu. Sinkronisasi berjalan saat jaringan tersedia.", color = Muted, style = MaterialTheme.typography.bodySmall)
     }
 }
