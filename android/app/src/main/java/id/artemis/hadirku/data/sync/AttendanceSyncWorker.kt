@@ -77,7 +77,7 @@ class AttendanceSyncWorker(
                 }
 
                 val response = runCatching {
-                    http.post("${BuildConfig.SUPABASE_URL}/rest/v1/attendance_records?on_conflict=id") {
+                    http.post("${BuildConfig.SUPABASE_URL}/rest/v1/attendance_records?on_conflict=session_id,person_id") {
                         header(HttpHeaders.Authorization, "Bearer $accessToken")
                         header("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
                         header("Prefer", "resolution=merge-duplicates,return=minimal")
