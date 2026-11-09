@@ -32,6 +32,8 @@ cd android
 gradle :app:assembleDebug
 ```
 
+GitHub Actions also assembles a debug APK and publishes it as the `hadirku-android-debug` artifact for 14 days on successful runs.
+
 ## Implemented
 
 - Native Compose login using Supabase Auth.
