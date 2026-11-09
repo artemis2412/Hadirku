@@ -45,6 +45,21 @@ interface LocalAttendanceDao {
     @Query("SELECT * FROM local_attendance_records WHERE sessionId = :sessionId ORDER BY markedAt")
     fun observeRecords(sessionId: String): Flow<List<LocalAttendanceRecordEntity>>
 
+    @Transaction
+    suspend fun replaceOrganizationCache(
+        organizationId: String,
+        people: List<LocalPersonEntity>,
+        units: List<LocalUnitEntity>,
+        statuses: List<LocalAttendanceStatusEntity>,
+    ) {
+        clearPeople(organizationId)
+        clearUnits(organizationId)
+        clearStatuses(organizationId)
+        if (people.isNotEmpty()) upsertPeople(people)
+        if (units.isNotEmpty()) upsertUnits(units)
+        if (statuses.isNotEmpty()) upsertStatuses(statuses)
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAttendanceRecord(record: LocalAttendanceRecordEntity)
 
