@@ -45,6 +45,9 @@ interface LocalAttendanceDao {
     @Query("UPDATE sync_outbox SET attemptCount = attemptCount + 1, lastError = :error WHERE id = :id")
     suspend fun recordSyncFailure(id: String, error: String?)
 
+    @Query("UPDATE local_attendance_records SET syncState = 'synced' WHERE id = :recordId")
+    suspend fun markRecordSynced(recordId: String)
+
     @Query("DELETE FROM sync_outbox WHERE id = :id")
     suspend fun removeSyncedOperation(id: String)
 
