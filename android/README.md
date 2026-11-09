@@ -43,6 +43,9 @@ GitHub Actions also assembles a debug APK and publishes it as the `hadirku-andro
 - Local-first attendance repository: attendance and its outbox operation are committed in one Room transaction.
 - Stable deterministic attendance and outbox IDs so repeated offline edits replace the pending payload instead of creating duplicate operations.
 - Pending outbox query, retry count, last-error tracking, and pending-count Flow.
+- WorkManager scheduler waits for a network connection and queues follow-up work rather than dropping new attendance while a sync job is active.
+- Sync worker sends rows through Supabase REST with the current user's JWT and publishable key; database RLS remains responsible for organization authorization.
+- Sync uses the server's unique `(session_id, person_id)` constraint and removes only the exact payload version that was acknowledged, preserving edits made while a request is in flight.
 - WorkManager sync worker posts queued attendance records through Supabase REST using the active user's JWT and public publishable key; RLS remains enforced.
 - Network-connected unique work scheduling per organization with exponential retry for transient failures.
 - Each local attendance mark automatically enqueues its organization-scoped sync job.
