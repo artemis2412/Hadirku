@@ -40,6 +40,7 @@ gradle :app:assembleDebug
 ## Next
 
 - Organization membership and organization switcher.
-- Room database and offline attendance outbox.
-- Sync worker with idempotency and conflict handling.
-- Attendance session and record screens.
+- Room database with local people, attendance sessions, attendance records, and a sync outbox.
+- Offline-first `LocalAttendanceRepository`: saves each attendance mark and its outbox operation atomically; payload includes an idempotency key.
+- Pending outbox query and retry metadata are available through the DAO.
+- Still to build: authenticated organization selection, background sync worker, server conflict handling, and interactive attendance screens.
